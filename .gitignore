@@ -1,0 +1,32 @@
+# Virtual Environments
+venv/
+venv_linux/
+env/
+.venv/
+ENV/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment Secrets
+.env
+.env.*
+!.env.example
+
+# Runtime & Logs
+app.pid
+*.pid
+app.log
+*.log
+
+# Large Binaries & Docs
+*.exe
+*.docx
+DockerDesktopInstaller.exe
+
+# OS generated
+.DS_Store
+Thumbs.db

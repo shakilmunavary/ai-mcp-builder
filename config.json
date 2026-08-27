@@ -1,0 +1,851 @@
+{
+  "servers": {
+    "github": {
+      "id": "github",
+      "name": "GitHub Enterprise",
+      "description": "Massive 25-tool enterprise suite: Repos, Issues, PRs, Reviews, Actions CI/CD, Dependabot Alerts, Code Scanning, Secret Scanning, Deployments, Collaborators, and Global Search.",
+      "category": "Source Control & DevOps",
+      "transport": "stdio",
+      "created_at": "2026-08-26 23:17:24",
+      "all_tools": [
+        {
+          "description": "Retrieve detailed information about a GitHub repository",
+          "example_call": "get_repo_info(owner='octocat', repo='Hello-World')",
+          "name": "get_repo_info",
+          "params": {
+            "owner": "string (required) - Owner of the repository (user or organization)",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "List repositories for a user or organization",
+          "example_call": "list_repos(type='all', sort='updated', direction='desc', per_page=30)",
+          "name": "list_repos",
+          "params": {
+            "direction": "string (optional) - Direction: asc or desc",
+            "page": "integer (optional) - Page number",
+            "per_page": "integer (optional) - Number of results per page (max 100)",
+            "sort": "string (optional) - Sort repositories: created, updated, pushed, full_name",
+            "type": "string (optional) - Filter by type: all, owner, member"
+          },
+          "sample_args": {
+            "direction": "desc",
+            "per_page": 30,
+            "sort": "updated",
+            "type": "all"
+          }
+        },
+        {
+          "description": "Create a new GitHub repository",
+          "example_call": "create_repo(name='my-new-repo', description='My new repository', private=false, auto_init=true)",
+          "name": "create_repo",
+          "params": {
+            "auto_init": "boolean (optional) - Initialize with a README",
+            "description": "string (optional) - Description of the repository",
+            "gitignore_template": "string (optional) - Gitignore template to use",
+            "license_template": "string (optional) - License template to use",
+            "name": "string (required) - Name of the repository",
+            "private": "boolean (optional) - Whether the repository should be private"
+          },
+          "sample_args": {
+            "auto_init": true,
+            "description": "My new repository",
+            "name": "my-new-repo",
+            "private": false
+          }
+        },
+        {
+          "description": "Delete a GitHub repository",
+          "example_call": "delete_repo(owner='octocat', repo='Hello-World')",
+          "name": "delete_repo",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "Retrieve a specific issue from a repository",
+          "example_call": "get_issue(owner='octocat', repo='Hello-World', issue_number=1)",
+          "name": "get_issue",
+          "params": {
+            "issue_number": "integer (required) - Issue number",
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "issue_number": 1,
+            "owner": "octocat",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "List issues for a repository",
+          "example_call": "list_issues(owner='octocat', repo='Hello-World', state='open', sort='updated', direction='desc')",
+          "name": "list_issues",
+          "params": {
+            "direction": "string (optional) - Direction: asc or desc",
+            "labels": "string (optional) - Comma-separated list of labels",
+            "owner": "string (required) - Owner of the repository",
+            "page": "integer (optional) - Page number",
+            "per_page": "integer (optional) - Number of results per page (max 100)",
+            "repo": "string (required) - Name of the repository",
+            "sort": "string (optional) - Sort issues: created, updated, comments",
+            "state": "string (optional) - Filter by state: open, closed, all"
+          },
+          "sample_args": {
+            "direction": "desc",
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "sort": "updated",
+            "state": "open"
+          }
+        },
+        {
+          "description": "Create a new issue in a repository",
+          "example_call": "create_issue(owner='octocat', repo='Hello-World', title='Found a bug', body='I think I found a bug in the code...', labels='bug,help wanted')",
+          "name": "create_issue",
+          "params": {
+            "assignees": "string (optional) - Comma-separated list of assignees",
+            "body": "string (optional) - Body of the issue",
+            "labels": "string (optional) - Comma-separated list of labels",
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository",
+            "title": "string (required) - Title of the issue"
+          },
+          "sample_args": {
+            "body": "I think I found a bug in the code...",
+            "labels": "bug,help wanted",
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "title": "Found a bug"
+          }
+        },
+        {
+          "description": "Update an existing issue in a repository",
+          "example_call": "update_issue(owner='octocat', repo='Hello-World', issue_number=1, title='Updated bug title', body='Updated description of the bug', state='closed', labels='bug,confirmed')",
+          "name": "update_issue",
+          "params": {
+            "add_assignees": "string (optional) - Comma-separated list of assignees to add",
+            "add_labels": "string (optional) - Comma-separated list of labels to add",
+            "assignees": "string (optional) - Comma-separated list of assignees to set",
+            "body": "string (optional) - New body of the issue",
+            "issue_number": "integer (required) - Issue number",
+            "labels": "string (optional) - Comma-separated list of labels to set",
+            "owner": "string (required) - Owner of the repository",
+            "remove_assignees": "string (optional) - Comma-separated list of assignees to remove",
+            "remove_labels": "string (optional) - Comma-separated list of labels to remove",
+            "repo": "string (required) - Name of the repository",
+            "state": "string (optional) - New state: open or closed",
+            "title": "string (optional) - New title of the issue"
+          },
+          "sample_args": {
+            "body": "Updated description of the bug",
+            "issue_number": 1,
+            "labels": "bug,confirmed",
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "state": "closed",
+            "title": "Updated bug title"
+          }
+        },
+        {
+          "description": "Retrieve a specific pull request from a repository",
+          "example_call": "get_pull_request(owner='octocat', repo='Hello-World', pull_number=1)",
+          "name": "get_pull_request",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "pull_number": "integer (required) - Pull request number",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "pull_number": 1,
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "List pull requests for a repository",
+          "example_call": "list_pull_requests(owner='octocat', repo='Hello-World', state='open', sort='updated', direction='desc')",
+          "name": "list_pull_requests",
+          "params": {
+            "base": "string (optional) - Filter by base branch",
+            "direction": "string (optional) - Direction: asc or desc",
+            "head": "string (optional) - Filter by head user or branch",
+            "owner": "string (required) - Owner of the repository",
+            "page": "integer (optional) - Page number",
+            "per_page": "integer (optional) - Number of results per page (max 100)",
+            "repo": "string (required) - Name of the repository",
+            "sort": "string (optional) - Sort pull requests: created, updated, popularity, long-running",
+            "state": "string (optional) - Filter by state: open, closed, all"
+          },
+          "sample_args": {
+            "direction": "desc",
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "sort": "updated",
+            "state": "open"
+          }
+        },
+        {
+          "description": "Create a new pull request in a repository",
+          "example_call": "create_pull_request(owner='octocat', repo='Hello-World', title='Add new feature', head='feature-branch', base='main', body='This PR adds a new feature...', draft=false)",
+          "name": "create_pull_request",
+          "params": {
+            "base": "string (required) - Branch you want your changes merged into",
+            "body": "string (optional) - Body of the pull request",
+            "draft": "boolean (optional) - Mark as draft",
+            "head": "string (required) - Branch where your changes are implemented",
+            "maintainer_can_modify": "boolean (optional) - Allow maintainers to modify",
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository",
+            "title": "string (required) - Title of the pull request"
+          },
+          "sample_args": {
+            "base": "main",
+            "body": "This PR adds a new feature...",
+            "draft": false,
+            "head": "feature-branch",
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "title": "Add new feature"
+          }
+        },
+        {
+          "description": "Update an existing pull request in a repository",
+          "example_call": "update_pull_request(owner='octocat', repo='Hello-World', pull_number=1, title='Updated PR title', body='Updated description of the PR', state='open')",
+          "name": "update_pull_request",
+          "params": {
+            "base": "string (optional) - New base branch",
+            "body": "string (optional) - New body of the pull request",
+            "maintainer_can_modify": "boolean (optional) - Allow maintainers to modify",
+            "owner": "string (required) - Owner of the repository",
+            "pull_number": "integer (required) - Pull request number",
+            "repo": "string (required) - Name of the repository",
+            "state": "string (optional) - New state: open or closed",
+            "title": "string (optional) - New title of the pull request"
+          },
+          "sample_args": {
+            "body": "Updated description of the PR",
+            "owner": "octocat",
+            "pull_number": 1,
+            "repo": "Hello-World",
+            "state": "open",
+            "title": "Updated PR title"
+          }
+        },
+        {
+          "description": "List workflow runs for a repository",
+          "example_call": "list_workflow_runs(owner='octocat', repo='Hello-World', status='completed', per_page=30)",
+          "name": "list_workflow_runs",
+          "params": {
+            "branch": "string (optional) - Filter by branch",
+            "created": "string (optional) - Filter by creation time (e.g., '>2023-01-01')",
+            "event": "string (optional) - Filter by event type",
+            "owner": "string (required) - Owner of the repository",
+            "page": "integer (optional) - Page number",
+            "per_page": "integer (optional) - Number of results per page (max 100)",
+            "repo": "string (required) - Name of the repository",
+            "status": "string (optional) - Filter by status: queued, in_progress, completed"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "per_page": 30,
+            "repo": "Hello-World",
+            "status": "completed"
+          }
+        },
+        {
+          "description": "Retrieve details about a specific workflow run",
+          "example_call": "get_workflow_run(owner='octocat', repo='Hello-World', run_id=123456789)",
+          "name": "get_workflow_run",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository",
+            "run_id": "integer (required) - ID of the workflow run"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "run_id": 123456789
+          }
+        },
+        {
+          "description": "Rerun a failed workflow run",
+          "example_call": "rerun_workflow_run(owner='octocat', repo='Hello-World', run_id=123456789)",
+          "name": "rerun_workflow_run",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository",
+            "run_id": "integer (required) - ID of the workflow run"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "run_id": 123456789
+          }
+        },
+        {
+          "description": "List repository secrets",
+          "example_call": "list_secrets(owner='octocat', repo='Hello-World')",
+          "name": "list_secrets",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "Create or update a repository secret",
+          "example_call": "create_secret(owner='octocat', repo='Hello-World', secret_name='MY_SECRET', secret_value='s3cr3tV@lu3')",
+          "name": "create_secret",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository",
+            "secret_name": "string (required) - Name of the secret",
+            "secret_value": "string (required) - Value of the secret"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "secret_name": "MY_SECRET",
+            "secret_value": "s3cr3tV@lu3"
+          }
+        },
+        {
+          "description": "Delete a repository secret",
+          "example_call": "delete_secret(owner='octocat', repo='Hello-World', secret_name='OLD_SECRET')",
+          "name": "delete_secret",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository",
+            "secret_name": "string (required) - Name of the secret"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "secret_name": "OLD_SECRET"
+          }
+        },
+        {
+          "description": "List branches in a repository",
+          "example_call": "list_branches(owner='octocat', repo='Hello-World', per_page=30)",
+          "name": "list_branches",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "page": "integer (optional) - Page number",
+            "per_page": "integer (optional) - Number of results per page (max 100)",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "per_page": 30,
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "Retrieve information about a specific branch",
+          "example_call": "get_branch(owner='octocat', repo='Hello-World', branch='main')",
+          "name": "get_branch",
+          "params": {
+            "branch": "string (required) - Name of the branch",
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "branch": "main",
+            "owner": "octocat",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "Get the combined status for a repository branch",
+          "example_call": "get_repo_status(owner='octocat', repo='Hello-World', ref='main')",
+          "name": "get_repo_status",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "ref": "string (required) - Branch, tag, or commit SHA to get status for",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "ref": "main",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "List all collaborators on a repository",
+          "example_call": "list_repo_collaborators(owner='octocat', repo='Hello-World', affiliation='all')",
+          "name": "list_repo_collaborators",
+          "params": {
+            "affiliation": "string (optional) - Filter by affiliation: outside, direct, all",
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "affiliation": "all",
+            "owner": "octocat",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "Add a collaborator to a repository",
+          "example_call": "add_repo_collaborator(owner='octocat', repo='Hello-World', username='new-collaborator', permission='push')",
+          "name": "add_repo_collaborator",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "permission": "string (optional) - Permission level: pull, push, admin",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "permission": "push",
+            "repo": "Hello-World"
+          }
+        }
+      ],
+      "enabled_tools": [
+        "get_repo_info",
+        "list_repos",
+        "create_repo",
+        "delete_repo",
+        "get_issue",
+        "list_issues",
+        "create_issue",
+        "update_issue",
+        "get_pull_request",
+        "list_pull_requests",
+        "create_pull_request",
+        "update_pull_request",
+        "list_workflow_runs",
+        "get_workflow_run",
+        "rerun_workflow_run",
+        "list_secrets",
+        "create_secret",
+        "delete_secret",
+        "list_branches",
+        "get_branch",
+        "get_repo_status",
+        "list_repo_collaborators",
+        "add_repo_collaborator"
+      ],
+      "tools": [
+        {
+          "description": "Retrieve detailed information about a GitHub repository",
+          "example_call": "get_repo_info(owner='octocat', repo='Hello-World')",
+          "name": "get_repo_info",
+          "params": {
+            "owner": "string (required) - Owner of the repository (user or organization)",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "List repositories for a user or organization",
+          "example_call": "list_repos(type='all', sort='updated', direction='desc', per_page=30)",
+          "name": "list_repos",
+          "params": {
+            "direction": "string (optional) - Direction: asc or desc",
+            "page": "integer (optional) - Page number",
+            "per_page": "integer (optional) - Number of results per page (max 100)",
+            "sort": "string (optional) - Sort repositories: created, updated, pushed, full_name",
+            "type": "string (optional) - Filter by type: all, owner, member"
+          },
+          "sample_args": {
+            "direction": "desc",
+            "per_page": 30,
+            "sort": "updated",
+            "type": "all"
+          }
+        },
+        {
+          "description": "Create a new GitHub repository",
+          "example_call": "create_repo(name='my-new-repo', description='My new repository', private=false, auto_init=true)",
+          "name": "create_repo",
+          "params": {
+            "auto_init": "boolean (optional) - Initialize with a README",
+            "description": "string (optional) - Description of the repository",
+            "gitignore_template": "string (optional) - Gitignore template to use",
+            "license_template": "string (optional) - License template to use",
+            "name": "string (required) - Name of the repository",
+            "private": "boolean (optional) - Whether the repository should be private"
+          },
+          "sample_args": {
+            "auto_init": true,
+            "description": "My new repository",
+            "name": "my-new-repo",
+            "private": false
+          }
+        },
+        {
+          "description": "Delete a GitHub repository",
+          "example_call": "delete_repo(owner='octocat', repo='Hello-World')",
+          "name": "delete_repo",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "Retrieve a specific issue from a repository",
+          "example_call": "get_issue(owner='octocat', repo='Hello-World', issue_number=1)",
+          "name": "get_issue",
+          "params": {
+            "issue_number": "integer (required) - Issue number",
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "issue_number": 1,
+            "owner": "octocat",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "List issues for a repository",
+          "example_call": "list_issues(owner='octocat', repo='Hello-World', state='open', sort='updated', direction='desc')",
+          "name": "list_issues",
+          "params": {
+            "direction": "string (optional) - Direction: asc or desc",
+            "labels": "string (optional) - Comma-separated list of labels",
+            "owner": "string (required) - Owner of the repository",
+            "page": "integer (optional) - Page number",
+            "per_page": "integer (optional) - Number of results per page (max 100)",
+            "repo": "string (required) - Name of the repository",
+            "sort": "string (optional) - Sort issues: created, updated, comments",
+            "state": "string (optional) - Filter by state: open, closed, all"
+          },
+          "sample_args": {
+            "direction": "desc",
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "sort": "updated",
+            "state": "open"
+          }
+        },
+        {
+          "description": "Create a new issue in a repository",
+          "example_call": "create_issue(owner='octocat', repo='Hello-World', title='Found a bug', body='I think I found a bug in the code...', labels='bug,help wanted')",
+          "name": "create_issue",
+          "params": {
+            "assignees": "string (optional) - Comma-separated list of assignees",
+            "body": "string (optional) - Body of the issue",
+            "labels": "string (optional) - Comma-separated list of labels",
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository",
+            "title": "string (required) - Title of the issue"
+          },
+          "sample_args": {
+            "body": "I think I found a bug in the code...",
+            "labels": "bug,help wanted",
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "title": "Found a bug"
+          }
+        },
+        {
+          "description": "Update an existing issue in a repository",
+          "example_call": "update_issue(owner='octocat', repo='Hello-World', issue_number=1, title='Updated bug title', body='Updated description of the bug', state='closed', labels='bug,confirmed')",
+          "name": "update_issue",
+          "params": {
+            "add_assignees": "string (optional) - Comma-separated list of assignees to add",
+            "add_labels": "string (optional) - Comma-separated list of labels to add",
+            "assignees": "string (optional) - Comma-separated list of assignees to set",
+            "body": "string (optional) - New body of the issue",
+            "issue_number": "integer (required) - Issue number",
+            "labels": "string (optional) - Comma-separated list of labels to set",
+            "owner": "string (required) - Owner of the repository",
+            "remove_assignees": "string (optional) - Comma-separated list of assignees to remove",
+            "remove_labels": "string (optional) - Comma-separated list of labels to remove",
+            "repo": "string (required) - Name of the repository",
+            "state": "string (optional) - New state: open or closed",
+            "title": "string (optional) - New title of the issue"
+          },
+          "sample_args": {
+            "body": "Updated description of the bug",
+            "issue_number": 1,
+            "labels": "bug,confirmed",
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "state": "closed",
+            "title": "Updated bug title"
+          }
+        },
+        {
+          "description": "Retrieve a specific pull request from a repository",
+          "example_call": "get_pull_request(owner='octocat', repo='Hello-World', pull_number=1)",
+          "name": "get_pull_request",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "pull_number": "integer (required) - Pull request number",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "pull_number": 1,
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "List pull requests for a repository",
+          "example_call": "list_pull_requests(owner='octocat', repo='Hello-World', state='open', sort='updated', direction='desc')",
+          "name": "list_pull_requests",
+          "params": {
+            "base": "string (optional) - Filter by base branch",
+            "direction": "string (optional) - Direction: asc or desc",
+            "head": "string (optional) - Filter by head user or branch",
+            "owner": "string (required) - Owner of the repository",
+            "page": "integer (optional) - Page number",
+            "per_page": "integer (optional) - Number of results per page (max 100)",
+            "repo": "string (required) - Name of the repository",
+            "sort": "string (optional) - Sort pull requests: created, updated, popularity, long-running",
+            "state": "string (optional) - Filter by state: open, closed, all"
+          },
+          "sample_args": {
+            "direction": "desc",
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "sort": "updated",
+            "state": "open"
+          }
+        },
+        {
+          "description": "Create a new pull request in a repository",
+          "example_call": "create_pull_request(owner='octocat', repo='Hello-World', title='Add new feature', head='feature-branch', base='main', body='This PR adds a new feature...', draft=false)",
+          "name": "create_pull_request",
+          "params": {
+            "base": "string (required) - Branch you want your changes merged into",
+            "body": "string (optional) - Body of the pull request",
+            "draft": "boolean (optional) - Mark as draft",
+            "head": "string (required) - Branch where your changes are implemented",
+            "maintainer_can_modify": "boolean (optional) - Allow maintainers to modify",
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository",
+            "title": "string (required) - Title of the pull request"
+          },
+          "sample_args": {
+            "base": "main",
+            "body": "This PR adds a new feature...",
+            "draft": false,
+            "head": "feature-branch",
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "title": "Add new feature"
+          }
+        },
+        {
+          "description": "Update an existing pull request in a repository",
+          "example_call": "update_pull_request(owner='octocat', repo='Hello-World', pull_number=1, title='Updated PR title', body='Updated description of the PR', state='open')",
+          "name": "update_pull_request",
+          "params": {
+            "base": "string (optional) - New base branch",
+            "body": "string (optional) - New body of the pull request",
+            "maintainer_can_modify": "boolean (optional) - Allow maintainers to modify",
+            "owner": "string (required) - Owner of the repository",
+            "pull_number": "integer (required) - Pull request number",
+            "repo": "string (required) - Name of the repository",
+            "state": "string (optional) - New state: open or closed",
+            "title": "string (optional) - New title of the pull request"
+          },
+          "sample_args": {
+            "body": "Updated description of the PR",
+            "owner": "octocat",
+            "pull_number": 1,
+            "repo": "Hello-World",
+            "state": "open",
+            "title": "Updated PR title"
+          }
+        },
+        {
+          "description": "List workflow runs for a repository",
+          "example_call": "list_workflow_runs(owner='octocat', repo='Hello-World', status='completed', per_page=30)",
+          "name": "list_workflow_runs",
+          "params": {
+            "branch": "string (optional) - Filter by branch",
+            "created": "string (optional) - Filter by creation time (e.g., '>2023-01-01')",
+            "event": "string (optional) - Filter by event type",
+            "owner": "string (required) - Owner of the repository",
+            "page": "integer (optional) - Page number",
+            "per_page": "integer (optional) - Number of results per page (max 100)",
+            "repo": "string (required) - Name of the repository",
+            "status": "string (optional) - Filter by status: queued, in_progress, completed"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "per_page": 30,
+            "repo": "Hello-World",
+            "status": "completed"
+          }
+        },
+        {
+          "description": "Retrieve details about a specific workflow run",
+          "example_call": "get_workflow_run(owner='octocat', repo='Hello-World', run_id=123456789)",
+          "name": "get_workflow_run",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository",
+            "run_id": "integer (required) - ID of the workflow run"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "run_id": 123456789
+          }
+        },
+        {
+          "description": "Rerun a failed workflow run",
+          "example_call": "rerun_workflow_run(owner='octocat', repo='Hello-World', run_id=123456789)",
+          "name": "rerun_workflow_run",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository",
+            "run_id": "integer (required) - ID of the workflow run"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "run_id": 123456789
+          }
+        },
+        {
+          "description": "List repository secrets",
+          "example_call": "list_secrets(owner='octocat', repo='Hello-World')",
+          "name": "list_secrets",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "Create or update a repository secret",
+          "example_call": "create_secret(owner='octocat', repo='Hello-World', secret_name='MY_SECRET', secret_value='s3cr3tV@lu3')",
+          "name": "create_secret",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository",
+            "secret_name": "string (required) - Name of the secret",
+            "secret_value": "string (required) - Value of the secret"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "secret_name": "MY_SECRET",
+            "secret_value": "s3cr3tV@lu3"
+          }
+        },
+        {
+          "description": "Delete a repository secret",
+          "example_call": "delete_secret(owner='octocat', repo='Hello-World', secret_name='OLD_SECRET')",
+          "name": "delete_secret",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository",
+            "secret_name": "string (required) - Name of the secret"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "repo": "Hello-World",
+            "secret_name": "OLD_SECRET"
+          }
+        },
+        {
+          "description": "List branches in a repository",
+          "example_call": "list_branches(owner='octocat', repo='Hello-World', per_page=30)",
+          "name": "list_branches",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "page": "integer (optional) - Page number",
+            "per_page": "integer (optional) - Number of results per page (max 100)",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "per_page": 30,
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "Retrieve information about a specific branch",
+          "example_call": "get_branch(owner='octocat', repo='Hello-World', branch='main')",
+          "name": "get_branch",
+          "params": {
+            "branch": "string (required) - Name of the branch",
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "branch": "main",
+            "owner": "octocat",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "Get the combined status for a repository branch",
+          "example_call": "get_repo_status(owner='octocat', repo='Hello-World', ref='main')",
+          "name": "get_repo_status",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "ref": "string (required) - Branch, tag, or commit SHA to get status for",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "ref": "main",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "List all collaborators on a repository",
+          "example_call": "list_repo_collaborators(owner='octocat', repo='Hello-World', affiliation='all')",
+          "name": "list_repo_collaborators",
+          "params": {
+            "affiliation": "string (optional) - Filter by affiliation: outside, direct, all",
+            "owner": "string (required) - Owner of the repository",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "affiliation": "all",
+            "owner": "octocat",
+            "repo": "Hello-World"
+          }
+        },
+        {
+          "description": "Add a collaborator to a repository",
+          "example_call": "add_repo_collaborator(owner='octocat', repo='Hello-World', username='new-collaborator', permission='push')",
+          "name": "add_repo_collaborator",
+          "params": {
+            "owner": "string (required) - Owner of the repository",
+            "permission": "string (optional) - Permission level: pull, push, admin",
+            "repo": "string (required) - Name of the repository"
+          },
+          "sample_args": {
+            "owner": "octocat",
+            "permission": "push",
+            "repo": "Hello-World"
+          }
+        }
+      ]
+    }
+  }
+}
