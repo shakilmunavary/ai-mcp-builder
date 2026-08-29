@@ -108,10 +108,19 @@ def execute_tool_call(target_name: str, tool_name: str, arguments: Dict[str, Any
     """Execute a tool function on the specified target server and return JSON-RPC payload."""
     allowed_tools = get_allowed_tools_for_server(target_name)
     if allowed_tools is not None and tool_name not in allowed_tools:
-        return {
-            "content": [{"type": "text", "text": f"⚠️ Tool '{tool_name}' is not exposed on server '{target_name}'. Enable it via 'Manage Exposed Tools'."}],
-            "isError": True
-        }
+        found_in_allowed = False
+        for at in allowed_tools:
+            clean_at = at.replace("_", "").lower()
+            clean_t = tool_name.replace("_", "").lower()
+            if clean_at == clean_t or clean_at.startswith(clean_t[:6]) or clean_t.startswith(clean_at[:6]):
+                found_in_allowed = True
+                tool_name = at
+                break
+        if not found_in_allowed:
+            return {
+                "content": [{"type": "text", "text": f"⚠️ Tool '{tool_name}' is not exposed on server '{target_name}'. Enable it via 'Manage Exposed Tools'."}],
+                "isError": True
+            }
 
     module = load_tool_module(target_name)
     if not module:
@@ -122,23 +131,22 @@ def execute_tool_call(target_name: str, tool_name: str, arguments: Dict[str, Any
 
     func = getattr(module, tool_name, None)
     if not func or not callable(func):
-        # Universal tool alias & normalization fallback
+        # Universal tool alias & normalization fallback (ignoring typing classes)
         for attr in dir(module):
-            if attr.startswith("_"):
+            if attr.startswith("_") or attr[0].isupper() or attr in ["Any", "Dict", "List", "Optional", "Union", "Tuple", "Set", "FastMCP"]:
+                continue
+            cand = getattr(module, attr, None)
+            if not callable(cand) or not (inspect.isfunction(cand) or hasattr(cand, "__code__")):
                 continue
             clean_attr = attr.replace("_", "").lower()
             clean_tool = tool_name.replace("_", "").lower()
-            if clean_attr == clean_tool or clean_attr.startswith(clean_tool[:7]) or clean_tool.startswith(clean_attr[:7]):
-                cand = getattr(module, attr, None)
-                if callable(cand):
-                    func = cand
-                    break
+            if clean_attr == clean_tool or clean_attr.startswith(clean_tool) or clean_tool.startswith(clean_attr):
+                func = cand
+                break
             elif any(w in clean_attr and w in clean_tool for w in ["repo", "incident", "job", "pipeline", "user", "issue", "branch"]):
                 if any(verb in clean_attr and verb in clean_tool for verb in ["list", "get", "create", "delete", "update", "trigger"]):
-                    cand = getattr(module, attr, None)
-                    if callable(cand):
-                        func = cand
-                        break
+                    func = cand
+                    break
 
     if not func or not callable(func):
         return {
