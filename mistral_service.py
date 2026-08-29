@@ -321,3 +321,235 @@ def call_mistral_mcp_architect(user_message: str, history: List[Dict[str, str]] 
     """Legacy wrapper maintained for backward compatibility."""
     result = chat_with_mcp_architect(None, user_message)
     return result.get("spec")
+
+
+AGENT_SYSTEM_PROMPT = """You are an Enterprise AI Agent connected directly to live MCP Servers via a secured Model Context Protocol Gateway.
+You assist developers and DevOps engineers by executing queries, actions, observability checks, and automated tasks across all registered MCP servers.
+
+AVAILABLE LIVE MCP SERVERS & TOOLS:
+{server_catalog}
+
+YOUR INSTRUCTIONS:
+1. UNDERSTAND INTENT & SELECT TOOL:
+   - Match the user's natural language request to the appropriate MCP server and tool.
+   - Example 1: "list my github repos" -> server_id: "github", tool_name: "list_repositories"
+   - Example 2: "show servicenow incidents" -> server_id: "servicenow", tool_name: "list_incidents"
+   - Example 3: "trigger jenkins job" -> server_id: "jenkins", tool_name: "build_job"
+
+2. CONVERSATIONAL PARAMETER COLLECTION (ASK ONE-BY-ONE):
+   - If a tool requires MANDATORY arguments (e.g. `repo`, `job_name`, `incident_id`, `issue_id`) that the user has NOT provided yet, DO NOT guess or fail.
+   - Prompt the user conversationally and politely for the missing parameter with a friendly example.
+   - Return output with type "ask_user".
+
+3. ACCURATE TOOL CALLING:
+   - If all required arguments are known, or if the tool can run with default/optional arguments or empty arguments `{{}}`, return output with type "tool_call".
+   - Pass clean, accurate arguments matching the tool's parameter schema.
+
+4. GENERAL CONVERSATION:
+   - If the user is asking a general question, greeting you, or asking what tools you have access to, return output with type "message" and summarize your live connected servers.
+
+OUTPUT FORMAT (STRICT JSON ONLY):
+For tool call:
+{{
+  "type": "tool_call",
+  "server_id": "github",
+  "tool_name": "list_repositories",
+  "arguments": {{}},
+  "thought": "User wants to list repositories."
+}}
+
+For asking missing parameters:
+{{
+  "type": "ask_user",
+  "missing_param": "parameter_name",
+  "reply": "Conversational question asking for the parameter with an example."
+}}
+
+For direct messages:
+{{
+  "type": "message",
+  "reply": "Markdown response to user."
+}}
+"""
+
+
+def chat_with_mcp_agent(
+    user_message: str,
+    history: List[Dict[str, str]],
+    servers: Dict[str, Any],
+    gateway_url: str = "http://localhost:5001",
+    gateway_key: str = "mcp_live_key_dev_2026"
+) -> Dict[str, Any]:
+    """
+    Agentic Chatbot: Uses Mistral AI to converse with the user, collect missing arguments,
+    and execute live MCP tools via the Secured Gateway.
+    """
+    api_key = get_mistral_api_key()
+    if not api_key:
+        return {
+            "type": "message",
+            "reply": "⚠️ **Mistral API Key Missing**. Please click **Mistral AI Key** at the top right to configure your API key."
+        }
+
+    # Format server catalog
+    catalog_lines = []
+    for s_id, s_data in servers.items():
+        s_name = s_data.get("name", s_id)
+        tools = s_data.get("all_tools") or s_data.get("tools") or []
+        enabled_tools = s_data.get("enabled_tools") or [t.get("name") for t in tools]
+        
+        catalog_lines.append(f"\n📦 Server ID: `{s_id}` ({s_name})")
+        for t in tools:
+            t_name = t.get("name")
+            if t_name not in enabled_tools:
+                continue
+            desc = t.get("description", "")
+            params = t.get("params", {})
+            catalog_lines.append(f"  - Tool: `{t_name}` | Description: {desc}")
+            if params:
+                catalog_lines.append(f"    Parameters: {json.dumps(params)}")
+
+    catalog_str = "\n".join(catalog_lines) if catalog_lines else "No active servers currently registered."
+    system_prompt = AGENT_SYSTEM_PROMPT.format(server_catalog=catalog_str)
+
+    # Build conversation messages
+    messages = [{"role": "system", "content": system_prompt}]
+    for msg in (history or []):
+        role = msg.get("role", "user")
+        if role in ["user", "assistant"]:
+            messages.append({"role": role, "content": msg.get("content", "")})
+    messages.append({"role": "user", "content": user_message})
+
+    payload = {
+        "model": DEFAULT_MISTRAL_MODEL,
+        "messages": messages,
+        "temperature": 0.2,
+        "response_format": {"type": "json_object"}
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        with httpx.Client(timeout=45.0) as client:
+            res = client.post(MISTRAL_API_URL, json=payload, headers=headers)
+            if res.status_code != 200:
+                # Try fallback model
+                payload["model"] = "mistral-small-latest"
+                res = client.post(MISTRAL_API_URL, json=payload, headers=headers)
+
+            if res.status_code != 200:
+                return {
+                    "type": "message",
+                    "reply": f"⚠️ Mistral AI error ({res.status_code}): {res.text[:200]}"
+                }
+
+            data = res.json()
+            raw_content = data["choices"][0]["message"]["content"]
+            agent_decision = json.loads(raw_content)
+
+            d_type = agent_decision.get("type", "message")
+
+            if d_type == "ask_user":
+                return {
+                    "type": "ask_user",
+                    "missing_param": agent_decision.get("missing_param"),
+                    "reply": agent_decision.get("reply", "Please provide the required parameter.")
+                }
+            elif d_type == "message":
+                return {
+                    "type": "message",
+                    "reply": agent_decision.get("reply", "How can I assist you with your MCP servers?")
+                }
+            elif d_type == "tool_call":
+                target_server = agent_decision.get("server_id")
+                target_tool = agent_decision.get("tool_name")
+                tool_args = agent_decision.get("arguments") or {}
+
+                # Execute tool call on Gateway
+                gateway_ep = f"{gateway_url.rstrip('/')}/mcp/{target_server}"
+                gw_payload = {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/call",
+                    "params": {
+                        "name": target_tool,
+                        "arguments": tool_args
+                    }
+                }
+                gw_headers = {
+                    "Authorization": f"Bearer {gateway_key}",
+                    "Content-Type": "application/json"
+                }
+
+                try:
+                    gw_res = client.post(gateway_ep, json=gw_payload, headers=gw_headers, timeout=30.0)
+                    gw_data = gw_res.json()
+                    
+                    # Extract text or error from JSON-RPC
+                    result_content = ""
+                    if "result" in gw_data and "content" in gw_data["result"]:
+                        for item in gw_data["result"]["content"]:
+                            if item.get("type") == "text":
+                                result_content += item.get("text", "")
+                    elif "error" in gw_data:
+                        result_content = json.dumps(gw_data["error"])
+                    else:
+                        result_content = json.dumps(gw_data)
+
+                    # Synthesize clean human-readable response with Mistral
+                    synth_prompt = f"""You are presenting the output of an MCP tool execution to the user.
+User Request: "{user_message}"
+Executed Tool: `{target_server}.{target_tool}` with arguments: {json.dumps(tool_args)}
+Raw Tool Output:
+{result_content[:4000]}
+
+Format this into a clean, concise, beautiful Markdown response (use tables, bullet points, or status badges where appropriate).
+Explain the result directly to the user."""
+
+                    synth_res = client.post(
+                        MISTRAL_API_URL,
+                        json={
+                            "model": DEFAULT_MISTRAL_MODEL,
+                            "messages": [{"role": "user", "content": synth_prompt}],
+                            "temperature": 0.2
+                        },
+                        headers=headers,
+                        timeout=30.0
+                    )
+                    
+                    if synth_res.status_code == 200:
+                        synth_reply = synth_res.json()["choices"][0]["message"]["content"]
+                    else:
+                        synth_reply = f"```json\n{result_content}\n```"
+
+                    return {
+                        "type": "tool_result",
+                        "tool_call": {
+                            "server_id": target_server,
+                            "tool_name": target_tool,
+                            "arguments": tool_args,
+                            "raw_output": result_content[:1000]
+                        },
+                        "reply": synth_reply
+                    }
+
+                except Exception as gwe:
+                    return {
+                        "type": "message",
+                        "reply": f"⚠️ Error executing `{target_server}.{target_tool}` via MCP Gateway: {str(gwe)}"
+                    }
+
+            return {
+                "type": "message",
+                "reply": agent_decision.get("reply", "Processed request.")
+            }
+
+    except Exception as e:
+        logger.error(f"Agent chat exception: {e}")
+        return {
+            "type": "message",
+            "reply": f"⚠️ Agent encountered an error: {str(e)}"
+        }

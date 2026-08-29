@@ -23,7 +23,7 @@ from platform_specs import get_all_platforms, get_platform_spec, find_platform_b
 from gateway_manager import gateway_mgr, get_current_gateway_api_key, set_current_gateway_api_key
 from mistral_service import (
     get_mistral_api_key, set_mistral_api_key, call_mistral_mcp_architect,
-    sanitize_tool_parameters, chat_with_mcp_architect, session_mgr
+    sanitize_tool_parameters, chat_with_mcp_architect, chat_with_mcp_agent, session_mgr
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -857,6 +857,30 @@ def conversational_ai_architect():
         "type": "error",
         "response": f"❓ I could not identify '**{message}**' as a recognized software, platform, or API service.\n\nPlease enter a valid tool or platform name (e.g. *AWS S3 alone*, *Jenkins*, *GitHub*, *ServiceNow*, *Terraform*, *PostgreSQL*, *Jira*, *Datadog*)."
     })
+
+
+@app.route("/api/chat/tester", methods=["POST"])
+def agent_chat_tester():
+    data = request.get_json() or {}
+    message = data.get("message", "").strip()
+    history = data.get("history", [])
+
+    if not message:
+        return jsonify({"type": "message", "reply": "Please type a message or instruction."}), 400
+
+    registry = load_server_registry()
+    servers = registry.get("servers", {})
+    gateway_key = get_current_gateway_api_key()
+
+    result = chat_with_mcp_agent(
+        user_message=message,
+        history=history,
+        servers=servers,
+        gateway_url="http://localhost:5001",
+        gateway_key=gateway_key
+    )
+
+    return jsonify(result)
 
 
 def main():
