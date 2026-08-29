@@ -168,7 +168,9 @@ def get_headers_and_auth(creds: Dict[str, str]):
     u = creds.get("username")
     p = creds.get("auth_val")
 
-    if u and p:
+    if p and (p.startswith("ghp_") or p.startswith("github_pat_") or p.startswith("Bearer ") or p.startswith("token ") or len(p) > 35):
+        headers["Authorization"] = p if (p.startswith("Bearer ") or p.startswith("token ")) else f"Bearer {{p}}"
+    elif u and p:
         auth = (u, p)
         try:
             b64_val = base64.b64encode(f"{{u}}:{{p}}".encode("utf-8")).decode("utf-8")
@@ -176,12 +178,7 @@ def get_headers_and_auth(creds: Dict[str, str]):
         except Exception:
             pass
     elif p:
-        if any(prefix in p for prefix in ["Bearer ", "Basic ", "token ", "ApiKey "]):
-            headers["Authorization"] = p
-        elif p.startswith("ghp_") or p.startswith("github_pat_") or len(p) == 40 or len(p) > 30:
-            headers["Authorization"] = f"Bearer {{p}}"
-        else:
-            headers["Authorization"] = f"Bearer {{p}}"
+        headers["Authorization"] = f"Bearer {{p}}"
             
     return headers, auth
 '''
