@@ -122,6 +122,25 @@ def execute_tool_call(target_name: str, tool_name: str, arguments: Dict[str, Any
 
     func = getattr(module, tool_name, None)
     if not func or not callable(func):
+        # Universal tool alias & normalization fallback
+        for attr in dir(module):
+            if attr.startswith("_"):
+                continue
+            clean_attr = attr.replace("_", "").lower()
+            clean_tool = tool_name.replace("_", "").lower()
+            if clean_attr == clean_tool or clean_attr.startswith(clean_tool[:7]) or clean_tool.startswith(clean_attr[:7]):
+                cand = getattr(module, attr, None)
+                if callable(cand):
+                    func = cand
+                    break
+            elif any(w in clean_attr and w in clean_tool for w in ["repo", "incident", "job", "pipeline", "user", "issue", "branch"]):
+                if any(verb in clean_attr and verb in clean_tool for verb in ["list", "get", "create", "delete", "update", "trigger"]):
+                    cand = getattr(module, attr, None)
+                    if callable(cand):
+                        func = cand
+                        break
+
+    if not func or not callable(func):
         return {
             "content": [{"type": "text", "text": f"Error: Tool '{tool_name}' not found on server '{target_name}'."}],
             "isError": True
