@@ -8,6 +8,7 @@ import sys
 import json
 import re
 import logging
+import subprocess
 from datetime import datetime
 import keyring
 from flask import Flask, render_template, request, jsonify
