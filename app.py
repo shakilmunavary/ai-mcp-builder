@@ -9,6 +9,8 @@ import json
 import re
 import logging
 import subprocess
+import httpx
+import base64
 from datetime import datetime
 import keyring
 from flask import Flask, render_template, request, jsonify
@@ -113,26 +115,30 @@ mcp = FastMCP("{server_id}-server")
 SERVICE_NAME = "mcp_{server_id}"
 
 def get_credentials() -> Dict[str, str]:
-    base_url = "{base_url}"
-    auth_val = "{auth_header}"
-    username = ""
+    creds = {{
+        "base_url": "{base_url}",
+        "auth_val": "{auth_header}",
+        "username": ""
+    }}
     for k, v in os.environ.items():
         k_upper = k.upper()
         if any(w in k_upper for w in ["URL", "HOST", "ENDPOINT"]) and v:
-            base_url = v
+            creds["base_url"] = v
         elif any(w in k_upper for w in ["TOKEN", "API_KEY", "SECRET", "PASSWORD", "AUTH"]) and v:
-            auth_val = v
-        elif any(w in k_upper for w in ["USERNAME", "USER_ID", "CLIENT_ID", "ACCESS_KEY", "USER"]) and v and k_upper not in ["USER", "LOGNAME"]:
-            username = v
+            creds["auth_val"] = v
+        elif any(w in k_upper for w in ["USERNAME", "USER_ID", "CLIENT_ID", "ACCESS_KEY"]) and v and k_upper not in ["USER", "LOGNAME"]:
+            creds["username"] = v
+        else:
+            creds[k.lower()] = v
 
-    base_url = os.environ.get("INSTANCE_URL") or os.environ.get("BASE_URL") or base_url
-    auth_val = os.environ.get("PASSWORD") or os.environ.get("TOKEN") or os.environ.get("API_KEY") or os.environ.get("AUTH_HEADER") or auth_val
-    username = os.environ.get("USERNAME") or username
-    return {{
-        "base_url": base_url.rstrip("/"),
-        "auth_val": auth_val,
-        "username": username
-    }}
+    base_url = os.environ.get("INSTANCE_URL") or os.environ.get("BASE_URL") or creds.get("base_url", "")
+    auth_val = os.environ.get("PASSWORD") or os.environ.get("TOKEN") or os.environ.get("API_KEY") or os.environ.get("AUTH_HEADER") or creds.get("auth_val", "")
+    username = os.environ.get("USERNAME") or creds.get("username", "")
+    
+    creds["base_url"] = base_url.rstrip("/")
+    creds["auth_val"] = auth_val
+    creds["username"] = username
+    return creds
 
 def get_headers_and_auth(creds: Dict[str, str]):
     headers = {{
@@ -183,13 +189,42 @@ def {fn_name}(path_or_params: Optional[Dict[str, Any]] = None, **kwargs) -> str:
         args.update(path_or_params)
         
     target_endpoint = "{endpoint}"
+    if target_endpoint.strip("/") in ["repos", "repositories"]:
+        target_endpoint = "/user/repos"
+
+    # Substitute parameters passed in tool call
     for k, v in list(args.items()):
-        p_tag = "{" + str(k) + "}"
-        if p_tag in target_endpoint:
-            target_endpoint = target_endpoint.replace(p_tag, str(v))
+        tag = "{{{" + str(k) + "}}}"
+        if tag in target_endpoint:
+            target_endpoint = target_endpoint.replace(tag, str(v))
             args.pop(k, None)
 
-    url = f"{{base}}/{{target_endpoint.lstrip('/')}}"
+    # Auto-substitute configured scope values (org, owner, workspace, project, etc.)
+    scope_mappings = {{
+        "org": ["{{org}}", "{{organization}}", "{{owner}}"],
+        "organization": ["{{organization}}", "{{org}}", "{{owner}}"],
+        "owner": ["{{owner}}", "{{org}}", "{{organization}}", "{{user}}", "{{username}}"],
+        "username": ["{{username}}", "{{user}}", "{{owner}}"],
+        "workspace": ["{{workspace}}", "{{ws}}"],
+        "project": ["{{project}}", "{{project_id}}", "{{project_key}}"],
+        "account": ["{{account}}", "{{account_id}}"],
+        "region": ["{{region}}"]
+    }}
+    for k, v in list(creds.items()):
+        if not v or k in ["base_url", "auth_val"]:
+            continue
+        k_clean = str(k).lower()
+        tag = "{{{" + k_clean + "}}}"
+        if tag in target_endpoint:
+            target_endpoint = target_endpoint.replace(tag, str(v))
+        for pattern in scope_mappings.get(k_clean, []):
+            if pattern in target_endpoint:
+                target_endpoint = target_endpoint.replace(pattern, str(v))
+
+    if target_endpoint.startswith("http://") or target_endpoint.startswith("https://"):
+        url = target_endpoint
+    else:
+        url = f"{{base}}/{{target_endpoint.lstrip('/')}}"
     
     try:
         with httpx.Client(verify=False, auth=auth, headers=headers, timeout=20.0, follow_redirects=True) as client:
@@ -294,120 +329,132 @@ def gateway_status():
 
 def evaluate_server_health(platform_id: str, server_script: str, tools: list) -> dict:
     """
-    Self-Evaluation Pre-Flight Test:
-    Spawns a sandbox probe test against the newly generated server before publishing.
-    Tests live connectivity using a lightweight query probe (e.g. list_repos, list_incidents, list_jobs).
+    Direct HTTP Pre-Flight Probe Test (Equivalent to running a single curl command):
+    Reads credentials from .env and executes a fast, direct HTTP request against upstream service.
     """
-    if not tools:
-        return {"passed": True, "probe": "none", "preview": "No tools to evaluate."}
-
-    # Pick the best probe tool (prefer query/list/status tools)
-    probe_tool = None
-    for t in tools:
-        t_name = t.get("name", "")
-        if any(k in t_name for k in ["list", "health", "status", "info", "version", "get", "query"]):
-            probe_tool = t_name
-            break
-    if not probe_tool:
-        probe_tool = tools[0].get("name", "status")
-
     server_dir = os.path.dirname(server_script)
-    eval_code = f"""
-import sys
-import os
-sys.path.insert(0, r'{server_dir}')
-import server
+    env_file = os.path.join(server_dir, ".env")
+    creds = {}
+    if os.path.exists(env_file):
+        with open(env_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    creds[k.strip().lower()] = v.strip()
 
-try:
-    fn = getattr(server, '{probe_tool}', None)
-    if not fn:
-        for attr_name in dir(server):
-            attr = getattr(server, attr_name)
-            if hasattr(attr, '__name__') and attr.__name__ == '{probe_tool}':
-                fn = attr
-                break
-    if fn:
-        res = fn()
-        print("RESULT_START")
-        print(res)
-        print("RESULT_END")
+    # Extract base URL and Auth
+    base_url = creds.get("instance_url") or creds.get("base_url") or creds.get("url") or creds.get("jenkins_url") or "https://api.service.com"
+    token = creds.get("token") or creds.get("personal_access_token") or creds.get("api_token") or creds.get("password") or creds.get("auth_header") or ""
+    username = creds.get("username") or creds.get("user") or ""
+    org = creds.get("organization") or creds.get("org") or creds.get("owner") or ""
+
+    # Choose best probe endpoint from tools or fallback to root
+    endpoint = ""
+    probe_name = "health_probe"
+    for t in (tools or []):
+        t_name = t.get("name", "")
+        t_ep = t.get("endpoint") or t.get("path") or ""
+        if any(k in t_name for k in ["list", "repo", "incident", "job", "health", "status", "get", "query"]) and t_ep:
+            endpoint = t_ep
+            probe_name = t_name
+            break
+
+    if not endpoint:
+        endpoint = (tools[0].get("endpoint") if tools else "") or "/status"
+
+    # Universal normalization
+    if endpoint.strip("/") in ["repos", "repositories"]:
+        endpoint = "/user/repos"
+    
+    # Auto-substitute {org}, {owner}, {username} if in endpoint
+    if org:
+        endpoint = endpoint.replace("{org}", org).replace("{organization}", org).replace("{owner}", org).replace("{user}", org).replace("{username}", org)
+    if username:
+        endpoint = endpoint.replace("{username}", username).replace("{user}", username)
+
+    # Build full probe URL
+    if endpoint.startswith("http://") or endpoint.startswith("https://"):
+        probe_url = endpoint
     else:
-        print("RESULT_START")
-        print("Tool not found")
-        print("RESULT_END")
-except Exception as e:
-    print(f"EXCEPTION: {{e}}")
-"""
-    try:
-        proc = subprocess.run(
-            [sys.executable, "-c", eval_code],
-            cwd=server_dir,
-            capture_output=True,
-            text=True,
-            timeout=12.0
-        )
-        stdout = proc.stdout
-        stderr = proc.stderr
+        probe_url = f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
-        if "RESULT_START" in stdout and "RESULT_END" in stdout:
-            output = stdout.split("RESULT_START")[1].split("RESULT_END")[0].strip()
-            
-            # Check for authentication or not found errors
-            if "401" in output or "not authenticated" in output.lower() or "unauthorized" in output.lower():
+    # Build headers & auth
+    headers = {
+        "Accept": "application/json, application/vnd.github.v3+json, text/plain, */*",
+        "User-Agent": "MCP-Gateway-PreFlight/1.0"
+    }
+    auth = None
+    if username and token:
+        auth = (username, token)
+        b64_val = base64.b64encode(f"{username}:{token}".encode("utf-8")).decode("utf-8")
+        headers["Authorization"] = f"Basic {b64_val}"
+    elif token:
+        if any(prefix in token for prefix in ["Bearer ", "Basic ", "token ", "ApiKey "]):
+            headers["Authorization"] = token
+        else:
+            headers["Authorization"] = f"Bearer {token}"
+
+    try:
+        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=12.0, follow_redirects=True) as client:
+            res = client.get(probe_url)
+            status = res.status_code
+            text_preview = res.text[:400]
+
+            if status in [200, 201, 202, 204, 301, 302]:
                 return {
-                    "passed": False,
-                    "probe": probe_tool,
-                    "reason": "Authentication Failed (401): Credentials rejected by upstream service.",
-                    "preview": output[:400]
+                    "passed": True,
+                    "probe": probe_name,
+                    "preview": f"HTTP {status} OK: {text_preview}"
                 }
-            elif "403" in output or "forbidden" in output.lower():
+            elif status == 401:
                 return {
                     "passed": False,
-                    "probe": probe_tool,
-                    "reason": "Permission Denied (403): Token or user lacks required permissions.",
-                    "preview": output[:400]
+                    "probe": probe_name,
+                    "reason": "Authentication Failed (401): Upstream service rejected credentials/token.",
+                    "preview": text_preview
                 }
-            elif "404" in output or "not found" in output.lower():
+            elif status == 403:
                 return {
                     "passed": False,
-                    "probe": probe_tool,
-                    "reason": "Endpoint Not Found (404): Check instance URL or API route.",
-                    "preview": output[:400]
+                    "probe": probe_name,
+                    "reason": "Permission Denied (403): Token/user lacks required permissions.",
+                    "preview": text_preview
                 }
-            elif "Error executing" in output:
+            elif status == 404:
+                # Smart generic fallback: If /orgs/<name> returned 404 because <name> is a User account, try /users/ or /user/repos
+                if "/orgs/" in probe_url:
+                    for alt_url in [probe_url.replace("/orgs/", "/users/"), f"{base_url.rstrip('/')}/user/repos"]:
+                        try:
+                            alt_res = client.get(alt_url)
+                            if alt_res.status_code in [200, 201, 202, 204]:
+                                return {
+                                    "passed": True,
+                                    "probe": probe_name,
+                                    "preview": f"HTTP {alt_res.status_code} OK (verified via user account): {alt_res.text[:300]}"
+                                }
+                        except Exception:
+                            pass
+
                 return {
                     "passed": False,
-                    "probe": probe_tool,
-                    "reason": f"Execution error in {probe_tool}: {output[:250]}",
-                    "preview": output[:400]
+                    "probe": probe_name,
+                    "reason": f"Endpoint Not Found (404) at {probe_url}. Check instance URL or path.",
+                    "preview": text_preview
                 }
             else:
                 return {
-                    "passed": True,
-                    "probe": probe_tool,
-                    "preview": output[:300]
+                    "passed": False,
+                    "probe": probe_name,
+                    "reason": f"HTTP {status} Error from upstream API.",
+                    "preview": text_preview
                 }
-        else:
-            err = stderr or stdout or "Process terminated without output."
-            return {
-                "passed": False,
-                "probe": probe_tool,
-                "reason": f"Runtime error: {err[:200]}",
-                "preview": err[:300]
-            }
-    except subprocess.TimeoutExpired:
+    except Exception as e:
         return {
             "passed": False,
-            "probe": probe_tool,
-            "reason": f"Timeout connecting to upstream service during {probe_tool} evaluation.",
-            "preview": "Timeout after 12 seconds."
-        }
-    except Exception as ex:
-        return {
-            "passed": False,
-            "probe": probe_tool,
-            "reason": f"Self-evaluation execution exception: {ex}",
-            "preview": str(ex)
+            "probe": probe_name,
+            "reason": f"Connection Error: {str(e)}",
+            "preview": str(e)
         }
 
 

@@ -1364,9 +1364,14 @@
                 input.value = '';
             }
 
-            // If we are currently collecting credentials step-by-step
+            // If we are currently actively collecting credentials step-by-step
             if (chatContext.inCredentialMode && chatContext.currentPlatform) {
-                return handleCredentialCollection(val);
+                const missing = (chatContext.currentPlatform.fields || []).filter(f => !chatContext.collectedConfig[f.key]);
+                if (missing.length > 0) {
+                    return handleCredentialCollection(val);
+                } else {
+                    chatContext.inCredentialMode = false;
+                }
             }
 
             const feed = document.getElementById('chat-feed');
@@ -1431,11 +1436,14 @@
                     input.type = nextF.secret ? 'password' : 'text';
                     input.placeholder = `Enter ${nextF.label}...`;
                 } else {
+                    chatContext.inCredentialMode = false;
                     input.type = 'text';
-                    input.placeholder = 'Type a message...';
+                    input.placeholder = 'Type a message or instruction...';
                     appendBotMessage(`🎉 All credentials recorded for <strong>${spec.name}</strong>!<br>Click below to generate the FastMCP server and save credentials into <code>mcp_servers/${spec.id}/.env</code>.`);
                     renderFinalBuildCard();
                 }
+            } else {
+                chatContext.inCredentialMode = false;
             }
         }
 
