@@ -1297,7 +1297,7 @@
             fetchServers();
         }
 
-        /* --- Blank Conversational Chatbot Modal --- */
+        /* --- Enhanced Multi-Turn Conversational Architect with Memory --- */
         function openBuilderModal() {
             document.getElementById('builder-modal').classList.add('active');
             startChat();
@@ -1328,20 +1328,22 @@
 
         function startChat() {
             chatContext = {
+                sessionId: 'sess_' + Math.random().toString(36).substr(2, 9),
                 currentPlatform: null,
                 collectedConfig: {},
                 selectedTools: [],
-                history: []
+                history: [],
+                inCredentialMode: false
             };
 
             const feed = document.getElementById('chat-feed');
             feed.innerHTML = '';
 
-            appendBotMessage(`<strong>👋 Hello! I am your live Mistral AI MCP Architect.</strong><br>Tell me what platform or service you want to build an MCP server for (e.g. <em>AWS S3 alone</em>, <em>ServiceNow</em>, <em>Terraform</em>, <em>PostgreSQL DBA</em>, <em>Splunk</em>).`);
+            appendBotMessage(`<strong>👋 Hello! I am your Live Interactive MCP Solutions Architect.</strong><br>I provide deterministic, consistent tool suites with conversational memory. Tell me what platform or service you want to build (e.g. <em>ServiceNow</em>, <em>AWS S3 alone</em>, <em>Jenkins CI</em>, <em>Kubernetes</em>, <em>Jira</em>).<br><br><span style="color: #94a3b8; font-size: 12px;">💬 You can talk with me interactively, request tool additions/removals, or ask architectural questions at any time.</span>`);
 
             const input = document.getElementById('chat-input');
             input.value = '';
-            input.placeholder = "Enter platform (e.g. AWS S3 alone, SNOW, Terraform, Datadog)...";
+            input.placeholder = "Enter platform or instruction (e.g. ServiceNow, AWS S3 alone, Jenkins)...";
             input.type = 'text';
             input.focus();
         }
@@ -1362,25 +1364,26 @@
                 input.value = '';
             }
 
-            chatContext.history.push({ role: "user", content: val });
+            // If we are currently collecting credentials step-by-step
+            if (chatContext.inCredentialMode && chatContext.currentPlatform) {
+                return handleCredentialCollection(val);
+            }
 
             const feed = document.getElementById('chat-feed');
             const thinkingBubble = document.createElement('div');
             thinkingBubble.className = 'chat-bubble thinking';
             thinkingBubble.id = 'thinking-bubble';
-            thinkingBubble.innerHTML = '⚡ Mistral AI is reasoning & synthesizing tools and schemas...';
+            thinkingBubble.innerHTML = '⚡ Mistral AI Architect is reviewing, refining, and applying your instructions...';
             feed.appendChild(thinkingBubble);
             feed.scrollTop = feed.scrollHeight;
 
             try {
-                const res = await fetch('/api/chat', {
+                const res = await fetch('/api/architect/chat', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        message: val,
-                        history: chatContext.history,
-                        current_platform: chatContext.currentPlatform,
-                        collected_config: chatContext.collectedConfig
+                        session_id: chatContext.sessionId,
+                        message: val
                     })
                 });
                 const data = await res.json();
@@ -1388,37 +1391,51 @@
                 const tb = document.getElementById('thinking-bubble');
                 if (tb) tb.remove();
 
-                if (data.platform) {
-                    chatContext.currentPlatform = data.platform;
-                    chatContext.selectedTools = (data.platform.tools || []).map(t => t.name);
-                }
-                if (data.collected_config) {
-                    chatContext.collectedConfig = data.collected_config;
-                }
+                if (data.spec && data.is_valid) {
+                    chatContext.currentPlatform = {
+                        id: data.spec.platform_id,
+                        name: data.spec.platform_name,
+                        category: data.spec.category,
+                        description: data.spec.description,
+                        fields: data.spec.fields || [],
+                        tools: data.spec.tools || []
+                    };
+                    chatContext.selectedTools = (data.spec.tools || []).map(t => t.name);
 
-                if (data.type === 'discovery_confirmation') {
-                    appendBotMessage(data.response);
-                    renderDiscoveredToolsCard(data.platform);
-                } else if (data.type === 'field_prompt') {
-                    appendBotMessage(data.response);
-                    if (data.field && data.field.secret) {
-                        input.type = 'password';
-                        input.placeholder = `Enter ${data.field.label}...`;
-                    } else {
-                        input.type = 'text';
-                        input.placeholder = `Enter ${data.field ? data.field.label : 'value'}...`;
-                    }
-                } else if (data.type === 'ready_to_build') {
-                    appendBotMessage(data.response);
-                    renderFinalBuildCard();
+                    appendBotMessage(data.reply || `Generated specification for **${data.spec.platform_name}**.`);
+                    renderDiscoveredToolsCard(chatContext.currentPlatform);
                 } else {
-                    appendBotMessage(data.response);
+                    appendBotMessage(data.reply || `Could not recognize request.`);
                 }
 
             } catch (e) {
                 const tb = document.getElementById('thinking-bubble');
                 if (tb) tb.remove();
                 appendBotMessage(`❌ Error: ${e}`);
+            }
+        }
+
+        function handleCredentialCollection(val) {
+            const spec = chatContext.currentPlatform;
+            const input = document.getElementById('chat-input');
+            const missing = (spec.fields || []).filter(f => !chatContext.collectedConfig[f.key]);
+
+            if (missing.length > 0) {
+                const currentF = missing[0];
+                chatContext.collectedConfig[currentF.key] = val;
+                const remaining = (spec.fields || []).filter(f => !chatContext.collectedConfig[f.key]);
+
+                if (remaining.length > 0) {
+                    const nextF = remaining[0];
+                    appendBotMessage(`✅ Recorded <strong>${currentF.label}</strong>.<br><br>Please enter <strong>${nextF.label}</strong>:<br><em>${nextF.prompt || 'Enter value:'}</em>`);
+                    input.type = nextF.secret ? 'password' : 'text';
+                    input.placeholder = `Enter ${nextF.label}...`;
+                } else {
+                    input.type = 'text';
+                    input.placeholder = 'Type a message...';
+                    appendBotMessage(`🎉 All credentials recorded for <strong>${spec.name}</strong>!<br>Click below to generate the FastMCP server and save credentials into <code>mcp_servers/${spec.id}/.env</code>.`);
+                    renderFinalBuildCard();
+                }
             }
         }
 
@@ -1488,8 +1505,21 @@
 
         function confirmDiscoveryAndProceed() {
             updateDiscoverySelectedTools();
-            appendUserMessage("Yes, proceed to build.");
-            sendUserMessage("yes");
+            chatContext.inCredentialMode = true;
+            const spec = chatContext.currentPlatform;
+            const input = document.getElementById('chat-input');
+            const missing = (spec.fields || []).filter(f => !chatContext.collectedConfig[f.key]);
+
+            if (missing.length > 0) {
+                const firstF = missing[0];
+                appendBotMessage(`Great! Let's configure connection credentials for <strong>${spec.name}</strong>.<br><br>Please enter <strong>${firstF.label}</strong>:<br><em>${firstF.prompt || 'Enter value:'}</em>`);
+                input.type = firstF.secret ? 'password' : 'text';
+                input.placeholder = `Enter ${firstF.label}...`;
+                input.focus();
+            } else {
+                appendBotMessage(`🎉 All credentials ready for <strong>${spec.name}</strong>!`);
+                renderFinalBuildCard();
+            }
         }
 
         function renderFinalBuildCard() {

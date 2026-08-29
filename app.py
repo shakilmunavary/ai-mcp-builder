@@ -18,7 +18,10 @@ load_dotenv()
 
 from platform_specs import get_all_platforms, get_platform_spec, find_platform_by_query, GITHUB_ENTERPRISE_TOOLS, PLATFORM_SPECS
 from gateway_manager import gateway_mgr, get_current_gateway_api_key, set_current_gateway_api_key
-from mistral_service import get_mistral_api_key, set_mistral_api_key, call_mistral_mcp_architect, sanitize_tool_parameters
+from mistral_service import (
+    get_mistral_api_key, set_mistral_api_key, call_mistral_mcp_architect,
+    sanitize_tool_parameters, chat_with_mcp_architect, session_mgr
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_JSON_PATH = os.path.join(BASE_DIR, "config.json")
@@ -137,10 +140,11 @@ def get_headers_and_auth(creds: Dict[str, str]):
 '''
 
     is_jenkins = "jenkins" in server_id.lower() or "jenkins" in server_name.lower()
+    is_snow = "servicenow" in server_id.lower() or "snow" in server_id.lower()
 
     for t in tools:
         fn_name = re.sub(r'[^a-zA-Z0-9_]', '_', t.get("name", "custom_call"))
-        desc = t.get("description", f"Execute {fn_name}")
+        desc = t.get("description", f"Execute {fn_name}").replace('"', '\\"')
         method = "POST" if any(k in fn_name for k in ["create", "trigger", "post", "update", "delete", "add", "merge", "cancel", "lock", "start", "stop", "abort", "apply", "patch", "upload", "deploy", "submit", "close", "reopen", "put"]) else "GET"
 
         if is_jenkins:
@@ -197,7 +201,7 @@ def {fn_name}(folder: Optional[str] = None, recursive: Optional[bool] = False, p
 def {fn_name}(job_name: Optional[str] = None, folder: Optional[str] = None, path_or_params: Optional[Dict[str, Any]] = None) -> str:
     """{desc}"""
     creds = get_credentials()
-    j_name = job_name or (path_or_params or {{}}).get("job_name", "AI_PR_Validation")
+    j_name = job_name or (path_or_params or {{}}).get("job_name", "devops-vsp-pipeline")
     if folder:
         parts = [f"job/{{p}}" for p in folder.strip("/").split("/")] + [f"job/{{j_name}}"]
     else:
@@ -221,7 +225,7 @@ def {fn_name}(job_name: Optional[str] = None, folder: Optional[str] = None, path
 def {fn_name}(job_name: Optional[str] = None, build_number: Optional[int] = 1, folder: Optional[str] = None, path_or_params: Optional[Dict[str, Any]] = None) -> str:
     """{desc}"""
     creds = get_credentials()
-    j_name = job_name or (path_or_params or {{}}).get("job_name", "AI_PR_Validation")
+    j_name = job_name or (path_or_params or {{}}).get("job_name", "devops-vsp-pipeline")
     b_num = build_number or (path_or_params or {{}}).get("build_number", 1)
     if folder:
         parts = [f"job/{{p}}" for p in folder.strip("/").split("/")] + [f"job/{{j_name}}", str(b_num), "consoleText"]
@@ -256,6 +260,69 @@ def {fn_name}(path_or_params: Optional[Dict[str, Any]] = None) -> str:
             if res.status_code in [200, 201]:
                 return f"**{fn_name} ({{res.status_code}}):**\\n```json\\n{{res.text[:4000]}}\\n```"
             return f"Jenkins API ({{res.status_code}}): {{res.text[:400]}}"
+    except Exception as e:
+        return f"Error executing {fn_name}: {{e}}"
+'''
+        elif is_snow:
+            table_name = "incident"
+            if "change" in fn_name:
+                table_name = "change_request"
+            elif "problem" in fn_name:
+                table_name = "problem"
+            elif "ci" in fn_name or "cmdb" in fn_name:
+                table_name = "cmdb_ci"
+            elif "user_group" in fn_name or "group" in fn_name:
+                table_name = "sys_user_group"
+            elif "user" in fn_name:
+                table_name = "sys_user"
+            elif "role" in fn_name:
+                table_name = "sys_user_role"
+            elif "knowledge" in fn_name or "kb" in fn_name:
+                table_name = "kb_knowledge"
+            elif "catalog" in fn_name or "request" in fn_name:
+                table_name = "sc_request"
+
+            code += f'''
+
+@mcp.tool()
+def {fn_name}(limit: Optional[int] = 20, state: Optional[str] = None, query: Optional[str] = None, incident_number: Optional[str] = None, change_number: Optional[str] = None, problem_number: Optional[str] = None, short_description: Optional[str] = None, work_notes: Optional[str] = None, close_code: Optional[str] = None, close_notes: Optional[str] = None, path_or_params: Optional[Dict[str, Any]] = None) -> str:
+    """{desc}"""
+    creds = get_credentials()
+    base = creds["base_url"]
+    url = f"{{base}}/api/now/table/{table_name}"
+    headers, auth = get_headers_and_auth(creds)
+    
+    # Merge direct arguments and dict params
+    args = path_or_params or {{}}
+    if limit: args["sysparm_limit"] = limit
+    if state: args["state"] = state
+    if query: args["sysparm_query"] = query
+    if incident_number: args["number"] = incident_number
+    if change_number: args["number"] = change_number
+    if problem_number: args["number"] = problem_number
+    if short_description: args["short_description"] = short_description
+    if work_notes: args["work_notes"] = work_notes
+    if close_code: args["close_code"] = close_code
+    if close_notes: args["close_notes"] = close_notes
+
+    try:
+        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0) as client:
+            if "{method}" == "GET":
+                # Build query string
+                q_parts = []
+                for k, v in args.items():
+                    if k not in ["sysparm_limit", "sysparm_query"] and v is not None:
+                        q_parts.append(f"{{k}}={{v}}")
+                if q_parts and "sysparm_query" not in args:
+                    args["sysparm_query"] = "^".join(q_parts)
+                res = client.get(url, params=args)
+            else:
+                res = client.post(url, json=args)
+            
+            if res.status_code in [200, 201, 202]:
+                return f"**ServiceNow {fn_name} ({{res.status_code}}):**\\n```json\\n{{res.text[:4000]}}\\n```"
+            else:
+                return f"ServiceNow API Response ({{res.status_code}}): {{res.text[:500]}}"
     except Exception as e:
         return f"Error executing {fn_name}: {{e}}"
 '''
@@ -295,20 +362,18 @@ def ensure_server_script(platform_id: str, config_values: dict = None, tools: li
     os.makedirs(server_dir, exist_ok=True)
     server_script = os.path.join(server_dir, "server.py")
 
-    if os.path.exists(server_script) and os.path.getsize(server_script) > 50:
-        return server_script
-
     spec = get_platform_spec(platform_id)
     name = spec.get("name", platform_id) if spec else platform_id.capitalize()
     base_url = (config_values or {}).get("base_url", (config_values or {}).get("instance_url", "https://api.service.com"))
     auth_header = (config_values or {}).get("auth_header", (config_values or {}).get("password", (config_values or {}).get("api_token", "")))
     tools_list = tools or (spec.get("tools", []) if spec else [])
 
+    # Always generate fresh server script with all active tools
     code = generate_dynamic_mcp_server_script(platform_id, name, base_url, auth_header, tools_list)
     with open(server_script, "w", encoding="utf-8") as f:
         f.write(code)
 
-    logger.info(f"Auto-generated server script at {server_script}")
+    logger.info(f"Generated server script at {server_script} with {len(tools_list)} tools.")
     return server_script
 
 
@@ -489,6 +554,10 @@ def update_server_tools(platform_id: str):
     registry["servers"] = servers
     save_server_registry(registry)
 
+    # Regenerate server.py with active tools and restart gateway
+    ensure_server_script(platform_id, tools=s["tools"])
+    gateway_mgr.restart_gateway()
+
     return jsonify({"success": True, "server": s})
 
 
@@ -569,6 +638,44 @@ def synthesize_custom_platform_suite(raw_name: str) -> dict:
         ],
         "tools": tools
     }
+
+
+@app.route("/api/architect/chat", methods=["POST"])
+def interactive_architect_chat():
+    """
+    Multi-Turn Interactive MCP Architect with Persistent Memory:
+    - Retains conversation context per session_id.
+    - Deterministically seeds canonical suites for common tools.
+    - Dynamically modifies, adds, and removes tools based on user instructions.
+    - Explains parameters and architectures interactively.
+    """
+    data = request.get_json(silent=True) or {}
+    session_id = data.get("session_id")
+    message = (data.get("message") or "").strip()
+
+    if not message:
+        return jsonify({
+            "success": False,
+            "error": "Empty message provided."
+        }), 400
+
+    result = chat_with_mcp_architect(session_id, message)
+    return jsonify({
+        "success": True,
+        "session_id": result.get("session_id"),
+        "reply": result.get("reply"),
+        "spec": result.get("spec"),
+        "is_valid": result.get("is_valid", True)
+    })
+
+
+@app.route("/api/architect/reset", methods=["POST"])
+def interactive_architect_reset():
+    data = request.get_json(silent=True) or {}
+    session_id = data.get("session_id")
+    if session_id:
+        session_mgr.reset(session_id)
+    return jsonify({"success": True, "message": "Session reset successfully."})
 
 
 @app.route("/api/chat", methods=["POST"])

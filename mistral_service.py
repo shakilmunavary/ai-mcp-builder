@@ -1,87 +1,88 @@
 """
-Mistral AI Service - Dynamic Real-Time MCP Specification & Tool Architect
-Powered by Mistral AI LLM for interactive tool synthesis with strict entity validation & server-side credential isolation.
+Mistral AI Service - Interactive Multi-Turn MCP Architect with Context & Memory
+Provides deterministic tool synthesis, multi-turn design conversations, and schema customization.
 """
 
 import os
 import json
-import re
 import logging
+import uuid
 import httpx
-from typing import Dict, Any, List, Optional
+from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 
-load_dotenv()
+from platform_specs import find_platform_by_query, PLATFORM_SPECS
 
 logger = logging.getLogger("mistral_service")
 
 MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
+# Using codestral-latest or mistral-large-latest for optimal code and tool synthesis
+DEFAULT_MISTRAL_MODEL = os.environ.get("MISTRAL_MODEL", "codestral-latest")
 
-# List of parameter names that represent server connection credentials and MUST NOT be exposed in tool schemas
 AUTH_CREDENTIAL_PARAM_NAMES = {
-    "url", "base_url", "instance_url", "jenkins_url", "server_url", "host", "endpoint",
-    "token", "api_token", "jenkins_token", "access_token", "bearer_token", "pat",
-    "password", "secret", "secret_key", "aws_secret_access_key", "api_key",
-    "username", "user", "jenkins_username", "caller", "client_id", "aws_access_key_id",
-    "crumb", "jenkins_crumb", "csrf_token", "auth_header", "credentials_id"
+    "token", "api_token", "github_token", "jenkins_token", "password", "passwd",
+    "secret", "api_key", "secret_key", "base_url", "url", "jenkins_url",
+    "instance_url", "crumb", "csrf_crumb", "access_key", "secret_access_key",
+    "bearer_token", "private_key", "pat", "client_secret"
 }
 
 
-def get_mistral_api_key() -> str:
-    return os.environ.get("MISTRAL_API_KEY", "").strip()
+def get_mistral_api_key() -> Optional[str]:
+    load_dotenv(override=True)
+    return os.environ.get("MISTRAL_API_KEY", "").strip() or None
 
 
-def set_mistral_api_key(new_key: str) -> None:
-    os.environ["MISTRAL_API_KEY"] = new_key.strip()
-    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+def set_mistral_api_key(api_key: str) -> None:
+    api_key = api_key.strip()
+    os.environ["MISTRAL_API_KEY"] = api_key
+    
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
     lines = []
     found = False
     if os.path.exists(env_path):
         with open(env_path, "r", encoding="utf-8") as f:
             for line in f:
                 if line.startswith("MISTRAL_API_KEY="):
-                    lines.append(f"MISTRAL_API_KEY={new_key.strip()}\n")
+                    lines.append(f"MISTRAL_API_KEY={api_key}\n")
                     found = True
                 else:
                     lines.append(line)
     if not found:
-        lines.append(f"MISTRAL_API_KEY={new_key.strip()}\n")
+        lines.append(f"MISTRAL_API_KEY={api_key}\n")
 
     with open(env_path, "w", encoding="utf-8") as f:
         f.writelines(lines)
     logger.info("Updated MISTRAL_API_KEY in environment and .env")
 
 
-SYSTEM_PROMPT = """You are the World-Class AI Model Context Protocol (MCP) Architect.
-Your task is to analyze user requests and synthesize rich FastMCP tool specifications for REAL developer tools, cloud providers, APIs, databases, CI/CD systems, and enterprise services.
+SYSTEM_ARCHITECT_PROMPT = """You are the Senior Enterprise Model Context Protocol (MCP) Architect.
+You are collaborating with a developer in an interactive multi-turn design session to plan, review, and customize an MCP Server.
 
-CRITICAL RULES:
-1. REALITY & VALIDITY CHECK (NO HALLUCINATIONS):
-   - You MUST verify if the requested platform is a real, existing software, developer tool, cloud service, API, database, or technology.
-   - If the user provides made-up words, random characters, gibberish (e.g. "bimbikili", "asdfghjk", "foobaz123", "blabla"), or non-existent tools, you MUST NOT hallucinate fake tools.
-   - For invalid/unknown platforms, return JSON with `"is_valid": false`, `"tools": []`, `"fields": []`, and a friendly response:
-     `{"is_valid": false, "response": "I could not recognize '**<input>**' as a known software, platform, or API. Please specify a valid tool (e.g., Jenkins, AWS S3, GitHub, ServiceNow, PostgreSQL, Terraform, Jira) or provide its API details.", "tools": [], "fields": []}`
+YOUR CORE RESPONSIBILITIES:
+1. DETERMINISM & CONSISTENCY:
+   - Provide a comprehensive, professional tool suite covering:
+     * Query & Read Tools (inspect, list, get, search)
+     * Action & Mutation Tools (create, update, execute, trigger)
+     * Monitoring & Audit Tools (logs, status, history, metrics)
+     * Admin & Configuration Tools (settings, health, plugins)
+   - When modifying tools based on user feedback, DO NOT randomly change or drop existing unmentioned tools. Preserve the existing suite and apply exact delta changes.
 
-2. STRICT CREDENTIAL ISOLATION:
-   - Connection credentials (Base URL, Instance URL, API Tokens, Passwords, Secrets, Usernames, CSRF Crumbs) are configured ONCE at the server level in "fields" (to be saved in `.env`).
-   - DO NOT put connection credentials into tool "params" or "sample_args"!
-   - Tool "params" must ONLY contain domain/functional inputs needed for that operation (e.g. for Jenkins: job_name, build_number; for S3: bucket_name, object_key; for ServiceNow: incident_number, short_description).
-   - Status, version, and global listing tools must have EMPTY params `{}` and empty sample_args `{}`!
+2. CREDENTIAL ISOLATION:
+   - Connection credentials (Base URL, Instance URL, Tokens, Passwords, API Keys) belong in "fields" configured ONCE at server startup.
+   - NEVER place connection credentials into tool "params" or "sample_args".
 
-3. TOOL SCOPING & QUALITY:
-   - Pay strict attention to user scoping (e.g. if the user says "AWS S3 alone", ONLY produce AWS S3 tools, do NOT include EC2 or Lambda).
-   - Produce 12-25 comprehensive tools covering queries, actions, execution, and monitoring.
+3. INTERACTIVE CONVERSATION:
+   - Talk to the developer like an expert solutions architect.
+   - Explain your design choices, explain parameter requirements, and explain why certain tools are included or modified.
 
 OUTPUT FORMAT (STRICT VALID JSON):
-
-When Valid:
 {
   "is_valid": true,
-  "response": "Conversational summary explaining what you formulated for the user",
-  "platform_id": "unique_snake_case_id",
+  "reply": "Conversational reply to the developer explaining your actions, answers, or design rationale.",
+  "platform_id": "snake_case_id",
   "platform_name": "Human Readable Platform Name",
-  "category": "Domain Category (e.g. CI/CD, Cloud Storage, ITSM, Database)",
-  "description": "Comprehensive description of this MCP suite",
+  "category": "Domain Category (e.g. ITSM, CI/CD, Cloud Storage)",
+  "description": "Comprehensive description of this MCP server",
   "fields": [
     {
       "key": "field_key_name",
@@ -89,13 +90,14 @@ When Valid:
       "prompt": "Conversational prompt asking for this value",
       "placeholder": "example placeholder",
       "default": "",
-      "secret": true_or_false,
-      "required": true_or_false
+      "secret": true,
+      "required": true
     }
   ],
   "tools": [
     {
       "name": "snake_case_tool_name",
+      "category": "Query | Action | Monitoring | Admin",
       "description": "Clear description of what this tool accomplishes",
       "params": {
         "domain_param_name": "type (required/optional) - description"
@@ -108,10 +110,10 @@ When Valid:
   ]
 }
 
-When Invalid / Unknown / Gibberish:
+When user input is completely invalid / random gibberish:
 {
   "is_valid": false,
-  "response": "I could not recognize '**<input>**' as a known platform or API. Please specify a valid tool (e.g. Jenkins, GitHub, ServiceNow, AWS S3, Terraform, Datadog) or provide its API documentation.",
+  "reply": "I could not recognize '**<input>**' as a known software platform, service, or API. Please specify a valid system (e.g. ServiceNow, Jenkins, AWS S3, GitHub, Jira, PostgreSQL) or provide API documentation.",
   "tools": [],
   "fields": []
 }
@@ -120,8 +122,7 @@ When Invalid / Unknown / Gibberish:
 
 def sanitize_tool_parameters(tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
-    Strips accidental connection credentials (urls, tokens, passwords, usernames, crumbs)
-    from tool function schemas so only clean functional arguments remain.
+    Strips accidental connection credentials from tool schemas.
     """
     cleaned_tools = []
     for t in tools:
@@ -136,8 +137,6 @@ def sanitize_tool_parameters(tools: List[Dict[str, Any]]) -> List[Dict[str, Any]
             for p_name, p_desc in raw_params.items():
                 p_lower = p_name.lower()
                 if p_lower in AUTH_CREDENTIAL_PARAM_NAMES or any(k in p_lower for k in ["_token", "_password", "_url", "_crumb", "_secret", "api_key", "_api_key"]):
-                    continue
-                if p_lower in ["username", "jenkins_username"] and "auth" in str(p_desc).lower():
                     continue
                 clean_params[p_name] = p_desc
 
@@ -154,31 +153,137 @@ def sanitize_tool_parameters(tools: List[Dict[str, Any]]) -> List[Dict[str, Any]
     return cleaned_tools
 
 
-def call_mistral_mcp_architect(user_message: str, history: List[Dict[str, str]] = None) -> Optional[Dict[str, Any]]:
+class ArchitectSession:
+    """Represents an active multi-turn design session with state and memory."""
+    def __init__(self, session_id: str):
+        self.session_id = session_id
+        self.messages: List[Dict[str, str]] = []
+        self.current_spec: Optional[Dict[str, Any]] = None
+
+    def add_message(self, role: str, content: str):
+        self.messages.append({"role": role, "content": content})
+        # Keep last 12 messages for rich context
+        if len(self.messages) > 12:
+            self.messages = self.messages[-12:]
+
+    def get_state(self) -> Dict[str, Any]:
+        return {
+            "session_id": self.session_id,
+            "spec": self.current_spec,
+            "message_count": len(self.messages)
+        }
+
+
+class SessionManager:
+    """In-memory session registry for persistent multi-turn conversations."""
+    def __init__(self):
+        self._sessions: Dict[str, ArchitectSession] = {}
+
+    def get_or_create(self, session_id: Optional[str] = None) -> ArchitectSession:
+        if not session_id or session_id not in self._sessions:
+            new_id = session_id or str(uuid.uuid4())[:8]
+            self._sessions[new_id] = ArchitectSession(new_id)
+            return self._sessions[new_id]
+        return self._sessions[session_id]
+
+    def reset(self, session_id: str):
+        if session_id in self._sessions:
+            del self._sessions[session_id]
+
+
+session_mgr = SessionManager()
+
+
+def chat_with_mcp_architect(session_id: Optional[str], user_message: str) -> Dict[str, Any]:
     """
-    Calls Mistral AI chat completion to dynamically synthesize the MCP server specification.
+    Main multi-turn interactive architect engine:
+    1. Manages session memory.
+    2. Uses canonical deterministic blueprints for recognized enterprise tools.
+    3. Handles multi-turn conversational refinements with Codestral / Mistral Large.
     """
+    session = session_mgr.get_or_create(session_id)
+    user_message = user_message.strip()
+    session.add_message("user", user_message)
+
     api_key = get_mistral_api_key()
+
+    # If first turn in session and message matches a canonical enterprise suite
+    if not session.current_spec:
+        canonical = find_platform_by_query(user_message)
+        if canonical:
+            session.current_spec = {
+                "is_valid": True,
+                "platform_id": canonical["id"],
+                "platform_name": canonical["name"],
+                "category": canonical["category"],
+                "description": canonical["description"],
+                "fields": canonical["fields"],
+                "tools": canonical["tools"]
+            }
+            tool_count = len(canonical["tools"])
+            reply = (
+                f"👋 I have initialized the **{canonical['name']}** enterprise MCP suite with "
+                f"**{tool_count} standardized tools** across Queries, Actions, and Admin workflows.\n\n"
+                f"You can review the tools below, ask questions about specific parameters, request additional tools, "
+                f"or click **Proceed to Build** when ready."
+            )
+            session.add_message("assistant", reply)
+            return {
+                "session_id": session.session_id,
+                "reply": reply,
+                "spec": session.current_spec,
+                "is_valid": True
+            }
+
+    # If no Mistral API key is configured, provide deterministic fallback
     if not api_key:
-        logger.warning("No MISTRAL_API_KEY configured.")
-        return None
+        canonical = find_platform_by_query(user_message)
+        if canonical:
+            session.current_spec = {
+                "is_valid": True,
+                "platform_id": canonical["id"],
+                "platform_name": canonical["name"],
+                "category": canonical["category"],
+                "description": canonical["description"],
+                "fields": canonical["fields"],
+                "tools": canonical["tools"]
+            }
+            reply = f"Initialized standard {canonical['name']} suite with {len(canonical['tools'])} tools."
+            return {"session_id": session.session_id, "reply": reply, "spec": session.current_spec, "is_valid": True}
+        else:
+            return {
+                "session_id": session.session_id,
+                "reply": "⚠️ MISTRAL_API_KEY is not configured in Settings. Please add your key to enable dynamic AI customization.",
+                "spec": session.current_spec,
+                "is_valid": False
+            }
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    # Multi-turn prompt assembly for Mistral LLM
+    context_prompt = ""
+    if session.current_spec:
+        context_prompt = (
+            f"\n\nCURRENT WORKING SPECIFICATION:\n"
+            f"Platform: {session.current_spec.get('platform_name')} ({session.current_spec.get('platform_id')})\n"
+            f"Category: {session.current_spec.get('category')}\n"
+            f"Current Fields: {json.dumps(session.current_spec.get('fields', []))}\n"
+            f"Current Tools ({len(session.current_spec.get('tools', []))}): {json.dumps(session.current_spec.get('tools', []))}\n\n"
+            f"INSTRUCTION: Apply the user's feedback to the current specification. "
+            f"Preserve existing tools unless the user explicitly asks to remove or change them. "
+            f"Explain your changes clearly in 'reply'."
+        )
 
-    if history:
-        for h in history[-4:]:
-            role = "user" if h.get("role") == "user" else "assistant"
-            content = h.get("content", "")
-            if content and isinstance(content, str):
-                messages.append({"role": role, "content": content})
+    messages = [
+        {"role": "system", "content": SYSTEM_ARCHITECT_PROMPT + context_prompt}
+    ]
 
-    messages.append({"role": "user", "content": user_message})
+    for m in session.messages:
+        messages.append(m)
 
     payload = {
-        "model": "mistral-small-latest",
+        "model": DEFAULT_MISTRAL_MODEL,
         "messages": messages,
         "response_format": {"type": "json_object"},
-        "temperature": 0.1
+        "temperature": 0.1  # Low temperature ensures deterministic, repeatable schemas
     }
 
     headers = {
@@ -194,20 +299,62 @@ def call_mistral_mcp_architect(user_message: str, history: List[Dict[str, str]] 
                 data = res.json()
                 content = data["choices"][0]["message"]["content"]
                 parsed_spec = json.loads(content)
-                
-                # If invalid/gibberish, return without tools
-                if not parsed_spec.get("is_valid", True):
-                    return parsed_spec
 
-                # Sanitize tools to ensure credentials are never leaked as arguments
+                if not parsed_spec.get("is_valid", True):
+                    return {
+                        "session_id": session.session_id,
+                        "reply": parsed_spec.get("reply", "Could not recognize platform."),
+                        "spec": session.current_spec,
+                        "is_valid": False
+                    }
+
                 if parsed_spec.get("tools"):
                     parsed_spec["tools"] = sanitize_tool_parameters(parsed_spec["tools"])
 
-                logger.info(f"Mistral AI successfully synthesized {len(parsed_spec.get('tools', []))} tools for '{parsed_spec.get('platform_name')}'.")
-                return parsed_spec
+                session.current_spec = parsed_spec
+                reply_text = parsed_spec.get("reply") or f"Updated specification for **{parsed_spec.get('platform_name')}** ({len(parsed_spec.get('tools', []))} tools)."
+                session.add_message("assistant", reply_text)
+
+                return {
+                    "session_id": session.session_id,
+                    "reply": reply_text,
+                    "spec": parsed_spec,
+                    "is_valid": True
+                }
             else:
-                logger.error(f"Mistral API returned error {res.status_code}: {res.text}")
-                return None
+                # Fallback to mistral-small-latest if model unavailable
+                if "model" in res.text.lower() and DEFAULT_MISTRAL_MODEL != "mistral-small-latest":
+                    payload["model"] = "mistral-small-latest"
+                    res2 = client.post(MISTRAL_API_URL, json=payload, headers=headers)
+                    if res2.status_code == 200:
+                        data = res2.json()
+                        parsed_spec = json.loads(data["choices"][0]["message"]["content"])
+                        session.current_spec = parsed_spec
+                        return {
+                            "session_id": session.session_id,
+                            "reply": parsed_spec.get("reply", "Updated specification."),
+                            "spec": parsed_spec,
+                            "is_valid": True
+                        }
+
+                logger.error(f"Mistral API error {res.status_code}: {res.text}")
+                return {
+                    "session_id": session.session_id,
+                    "reply": f"⚠️ Error communicating with Mistral AI ({res.status_code}).",
+                    "spec": session.current_spec,
+                    "is_valid": False
+                }
     except Exception as e:
-        logger.error(f"Failed to communicate with Mistral AI API: {e}")
-        return None
+        logger.error(f"Mistral execution failed: {e}")
+        return {
+            "session_id": session.session_id,
+            "reply": f"⚠️ Exception connecting to AI Architect: {str(e)}",
+            "spec": session.current_spec,
+            "is_valid": False
+        }
+
+
+def call_mistral_mcp_architect(user_message: str, history: List[Dict[str, str]] = None) -> Optional[Dict[str, Any]]:
+    """Legacy wrapper maintained for backward compatibility."""
+    result = chat_with_mcp_architect(None, user_message)
+    return result.get("spec")
