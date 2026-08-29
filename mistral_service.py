@@ -468,6 +468,17 @@ def chat_with_mcp_agent(
                 target_tool = agent_decision.get("tool_name")
                 tool_args = agent_decision.get("arguments") or {}
 
+                # Fuzzy match tool name if exact name is slightly off (e.g. list_repositories vs list_repos)
+                server_tools = [t.get("name") for t in (servers.get(target_server, {}).get("all_tools") or servers.get(target_server, {}).get("tools") or [])]
+                if target_tool not in server_tools:
+                    for st in server_tools:
+                        if ("repo" in st and "repo" in target_tool) and ("list" in st and "list" in target_tool):
+                            target_tool = st
+                            break
+                        elif st.replace("_", "")[:7] == target_tool.replace("_", "")[:7]:
+                            target_tool = st
+                            break
+
                 # Execute tool call on Gateway
                 gateway_ep = f"{gateway_url.rstrip('/')}/mcp/{target_server}"
                 gw_payload = {
