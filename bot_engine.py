@@ -269,13 +269,7 @@ Return your analysis in STRICT JSON format:
 
 def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dict[str, Any]:
     """
-    Executes the multi-step autonomous workflow for a bot:
-    1. Read container / app logs.
-    2. Detect error signatures ('ERROR', 'Exception', 'FATAL').
-    3. Generate AI Root Cause Analysis (RCA).
-    4. Create ServiceNow incident via ServiceNow MCP server.
-    5. Update ServiceNow ticket with the RCA report.
-    6. Correlate with GitHub commits / Jenkins pipeline.
+    Executes the dynamic multi-step autonomous workflow for a bot based on its tools_required and context_config.
     """
     bot = bot_registry.get_bot(bot_id)
     if not bot:
@@ -286,13 +280,16 @@ def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dic
     steps_log = []
     
     ctx = bot.get("context_config", {})
-    container_name = ctx.get("container_name", "java-app")
-    github_repo = ctx.get("github_repo", "shakilmunavary/devops-vsp-sample-app")
-    jenkins_job = ctx.get("jenkins_job", "build-java-app")
+    tools_req = [t.lower() for t in bot.get("tools_required", [])]
+    
+    container_name = ctx.get("container_name") or "devops-vsp-sample-app"
+    github_repo = ctx.get("github_repo")
+    jenkins_job = ctx.get("jenkins_job")
+    step_num = 1
 
-    # Step 1: Monitor Container Logs
+    # Step 1: Container Log Inspection (if container monitoring is requested or container_name is present)
     steps_log.append({
-        "step": 1,
+        "step": step_num,
         "name": "Log Monitoring & Anomaly Detection",
         "status": "in_progress",
         "details": f"Inspecting live logs for container '{container_name}'..."
@@ -317,66 +314,96 @@ def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dic
     steps_log[0]["status"] = "alert"
     steps_log[0]["details"] = f"🚨 Detected critical error in '{container_name}' logs."
     steps_log[0]["log_sample"] = logs[-600:]
+    step_num += 1
 
     # Step 2: AI Root Cause Analysis (RCA)
     steps_log.append({
-        "step": 2,
+        "step": step_num,
         "name": "Mistral AI Root Cause Analysis (RCA)",
         "status": "in_progress",
         "details": "Synthesizing stack trace and diagnosing root failure cause..."
     })
-    rca = generate_ai_rca(logs, container_name, f"Repo: {github_repo}, Jenkins: {jenkins_job}")
-    steps_log[1]["status"] = "success"
-    steps_log[1]["details"] = f"RCA complete: {rca.get('root_cause')[:160]}"
-    steps_log[1]["rca_summary"] = rca
+    rca_context = f"Container: {container_name}"
+    if github_repo:
+        rca_context += f", Repo: {github_repo}"
+    if jenkins_job:
+        rca_context += f", Jenkins: {jenkins_job}"
+        
+    rca = generate_ai_rca(logs, container_name, rca_context)
+    steps_log[-1]["status"] = "success"
+    steps_log[-1]["details"] = f"RCA complete: {rca.get('root_cause')[:160]}"
+    steps_log[-1]["rca_summary"] = rca
+    step_num += 1
 
-    # Step 3: Create ServiceNow Incident via MCP Gateway
-    steps_log.append({
-        "step": 3,
-        "name": "ServiceNow Incident Creation (MCP)",
-        "status": "in_progress",
-        "details": "Creating incident ticket via 'servicenow.create_incident' tool on MCP Gateway (:5001)..."
-    })
-    inc_title = rca.get("incident_title") or f"[ALERT] Container Exception on {container_name}"
-    snow_args = {
-        "short_description": inc_title,
-        "description": f"Automated SRE Alert from Bot '{bot['name']}'\n\nContainer: {container_name}\nError: {rca.get('root_cause')}\nRecommended Fix: {rca.get('recommended_fix')}",
-        "urgency": ctx.get("snow_urgency", "2"),
-        "impact": ctx.get("snow_impact", "2")
-    }
-    snow_res = execute_mcp_tool_on_gateway("servicenow", "create_incident", snow_args)
-    
-    if snow_res["success"]:
-        steps_log[2]["status"] = "success"
-        steps_log[2]["details"] = f"ServiceNow incident generated successfully via MCP Gateway."
-        steps_log[2]["mcp_output"] = snow_res["output"][:400]
-    else:
-        steps_log[2]["status"] = "warning"
-        steps_log[2]["details"] = f"ServiceNow MCP response: {snow_res['output'][:200]}"
+    # Step 3: ServiceNow Incident Creation (if servicenow in tools_req)
+    if "servicenow" in tools_req or not tools_req:
+        steps_log.append({
+            "step": step_num,
+            "name": "ServiceNow Incident Creation (MCP)",
+            "status": "in_progress",
+            "details": "Creating incident ticket via 'servicenow.create_incident' tool on MCP Gateway (:5001)..."
+        })
+        inc_title = rca.get("incident_title") or f"[ALERT] Container Exception on {container_name}"
+        snow_args = {
+            "short_description": inc_title,
+            "description": f"""Automated SRE Alert from Bot '{bot['name']}'
 
-    # Step 4: Update Ticket with Full RCA
-    steps_log.append({
-        "step": 4,
-        "name": "ServiceNow Ticket Enrichment with RCA",
-        "status": "success",
-        "details": "Enriched incident ticket with full AI RCA remediation checklist and stack trace breakdown."
-    })
+Container: {container_name}
+Error: {rca.get('root_cause')}
+Recommended Fix: {rca.get('recommended_fix')}""",
+            "urgency": ctx.get("snow_urgency", "2"),
+            "impact": ctx.get("snow_impact", "2")
+        }
+        snow_res = execute_mcp_tool_on_gateway("servicenow", "create_incident", snow_args)
+        
+        if snow_res["success"]:
+            steps_log[-1]["status"] = "success"
+            steps_log[-1]["details"] = f"ServiceNow incident generated successfully via MCP Gateway."
+            steps_log[-1]["mcp_output"] = snow_res["output"][:400]
+        else:
+            steps_log[-1]["status"] = "warning"
+            steps_log[-1]["details"] = f"ServiceNow MCP response: {snow_res['output'][:200]}"
+        step_num += 1
 
-    # Step 5: Correlate GitHub Commits
-    steps_log.append({
-        "step": 5,
-        "name": "GitHub Commit Correlation (MCP)",
-        "status": "in_progress",
-        "details": f"Inspecting recent commits on '{github_repo}' via GitHub MCP Server..."
-    })
-    gh_res = execute_mcp_tool_on_gateway("github", "list_repos", {})
-    steps_log[4]["status"] = "success"
-    steps_log[4]["details"] = f"Correlated with repository '{github_repo}'. Verified active codebase status."
+        # Step 4: ServiceNow Enrichment
+        steps_log.append({
+            "step": step_num,
+            "name": "ServiceNow Ticket Enrichment with RCA",
+            "status": "success",
+            "details": "Enriched incident ticket with full AI RCA remediation checklist and stack trace breakdown."
+        })
+        step_num += 1
+
+    # Step 5: Jenkins Pipeline Inspection (if jenkins in tools_req)
+    if "jenkins" in tools_req and jenkins_job:
+        steps_log.append({
+            "step": step_num,
+            "name": f"Jenkins Job Inspection: '{jenkins_job}' (MCP)",
+            "status": "in_progress",
+            "details": f"Querying Jenkins build details for job '{jenkins_job}' via MCP Gateway..."
+        })
+        jk_res = execute_mcp_tool_on_gateway("jenkins", "get_job_details", {"job_name": jenkins_job})
+        steps_log[-1]["status"] = "success" if jk_res["success"] else "warning"
+        steps_log[-1]["details"] = f"Jenkins query completed for job '{jenkins_job}'."
+        step_num += 1
+
+    # Step 6: GitHub Commit Correlation (if github in tools_req)
+    if "github" in tools_req and github_repo:
+        steps_log.append({
+            "step": step_num,
+            "name": f"GitHub Repository Correlation: '{github_repo}' (MCP)",
+            "status": "in_progress",
+            "details": f"Inspecting recent repository commits on '{github_repo}' via GitHub MCP Server..."
+        })
+        gh_res = execute_mcp_tool_on_gateway("github", "list_repos", {})
+        steps_log[-1]["status"] = "success"
+        steps_log[-1]["details"] = f"Correlated with repository '{github_repo}'. Verified active codebase status."
+        step_num += 1
 
     end_time = datetime.now()
     duration_sec = round((end_time - start_time).total_seconds(), 2)
 
-    summary_text = f"🚨 Anomaly Detected in '{container_name}' ➔ Mistral AI RCA completed ({rca.get('affected_component', 'HikariPool')}) ➔ Created ServiceNow Incident ➔ Enriched with Remediation Plan."
+    summary_text = f"🚨 Anomaly Detected in '{container_name}' ➔ Mistral AI RCA completed ({rca.get('affected_component', 'Service')}) ➔ Orchestrated {len(steps_log)} steps via MCP Gateway."
 
     run_record = {
         "timestamp": timestamp_str,
