@@ -781,6 +781,312 @@
         }
 
         .btn-send:hover { background: var(--primary-hover); }
+    
+        /* Tab Switcher & Bots Dashboard */
+        .view-switcher {
+            display: flex;
+            gap: 6px;
+            background: rgba(15, 23, 42, 0.7);
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-tab {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-tab:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-tab.active {
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(59, 130, 246, 0.35);
+        }
+
+        .bots-dashboard {
+            flex: 1;
+            padding: 26px 36px;
+            overflow-y: auto;
+            background: radial-gradient(circle at 10% 20%, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 1) 90%);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .metric-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .metric-val {
+            font-size: 22px;
+            font-weight: 800;
+            color: #f8fafc;
+            line-height: 1.1;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .bots-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 22px;
+        }
+
+        .bots-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+            gap: 20px;
+        }
+
+        .bot-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+        }
+
+        .bot-card:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .bot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .bot-title {
+            font-size: 16px;
+            font-weight: 750;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bot-category {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+
+        .bot-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        .bot-status-pill.active {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .bot-status-pill.inactive {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .bot-status-pill.running {
+            background: rgba(234, 179, 8, 0.15);
+            color: #facc15;
+            border: 1px solid rgba(234, 179, 8, 0.3);
+        }
+
+        .bot-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .bot-context-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .bot-tag {
+            font-size: 11px;
+            font-family: var(--font-mono);
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            padding: 3px 8px;
+            border-radius: 6px;
+            color: #cbd5e1;
+        }
+
+        .bot-footer {
+            margin-top: auto;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bot-last-run {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .bot-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn-bot-run {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-bot-run:hover {
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+            transform: scale(1.03);
+        }
+
+        .btn-bot-action {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-bot-action:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .btn-bot-delete:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #f87171;
+        }
+
+        /* Timeline & RCA Viewer */
+        .step-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 16px 0;
+        }
+
+        .timeline-step {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .timeline-step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .timeline-step-num {
+            font-size: 11px;
+            font-weight: 800;
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .rca-box {
+            background: linear-gradient(135deg, rgba(30, 27, 75, 0.6), rgba(15, 23, 42, 0.8));
+            border: 1px solid rgba(168, 85, 247, 0.35);
+            border-radius: 10px;
+            padding: 16px;
+            margin: 12px 0;
+        }
+
+        .rca-field {
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .rca-field-title {
+            font-weight: 750;
+            color: #c084fc;
+            margin-bottom: 2px;
+        }
+
     </style>
 </head>
 <body>
@@ -792,6 +1098,15 @@
                 <h1>AI MCP Server Kit</h1>
                 <span>Live Mistral AI Interactive Architect</span>
             </div>
+        </div>
+
+        <div class="view-switcher">
+            <button id="view-tab-servers" class="btn-tab active" onclick="switchMainView('servers')">
+                📦 MCP Servers
+            </button>
+            <button id="view-tab-bots" class="btn-tab" onclick="switchMainView('bots')">
+                🤖 Autonomous Bots Dashboard
+            </button>
         </div>
 
         <div class="header-meta">
@@ -807,7 +1122,64 @@
         </div>
     </header>
 
-    <div class="app-container">
+    
+    <!-- Autonomous Bots Dashboard View -->
+    <div id="bots-dashboard-view" class="bots-dashboard" style="display: none;">
+        <!-- Metrics Row -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon" style="background: rgba(59, 130, 246, 0.15); color: #38bdf8;">🤖</div>
+                <div>
+                    <div class="metric-val" id="metric-total-bots">1</div>
+                    <div class="metric-label">Autonomous Bots</div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon" style="background: rgba(34, 197, 94, 0.15); color: #4ade80;">🟢</div>
+                <div>
+                    <div class="metric-val" id="metric-active-bots">1</div>
+                    <div class="metric-label">Active Watchdogs</div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon" style="background: rgba(249, 115, 22, 0.15); color: #fb923c;">⚡</div>
+                <div>
+                    <div class="metric-val" id="metric-total-runs">0</div>
+                    <div class="metric-label">Executed Workflows</div>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">🎫</div>
+                <div>
+                    <div class="metric-val" id="metric-incidents">0</div>
+                    <div class="metric-label">SNOW Tickets Created</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Header Controls -->
+        <div class="bots-header-bar">
+            <div>
+                <h2 style="font-size: 20px; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">DevOps Autonomous Bots</h2>
+                <p style="font-size: 13px; color: var(--text-muted);">AI-powered autonomous workflows monitoring containers, performing RCA, and orchestrating MCP tools.</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-outline" onclick="loadBots()" style="display: flex; align-items: center; gap: 6px;">
+                    🔄 Refresh
+                </button>
+                <button class="btn-add" onclick="openBotCreatorModal()" style="display: flex; align-items: center; gap: 6px;">
+                    ✨ + Create New AI Bot
+                </button>
+            </div>
+        </div>
+
+        <!-- Grid of Bots -->
+        <div class="bots-grid" id="bots-grid-container">
+            <!-- Dynamic Bot Cards loaded via JavaScript -->
+        </div>
+    </div>
+
+    <div class="app-container" id="servers-view">
         <div class="left-rail">
             <div class="rail-header">
                 <h2>Connected Tools</h2>
@@ -896,6 +1268,105 @@
             <div style="display: flex; justify-content: flex-end; gap: 10px;">
                 <button class="btn-outline" onclick="closeMistralKeyModal()">Cancel</button>
                 <button class="btn-add" onclick="saveMistralKey()">Save Mistral Key</button>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- Dynamic Bot Creator Modal -->
+    <div class="modal-backdrop" id="bot-creator-modal">
+        <div class="modal-box" style="width: 860px; max-width: 95vw; height: auto; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: linear-gradient(90deg, #1e1b4b, #1e293b); padding: 16px 24px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="brand-logo" style="width: 32px; height: 32px; font-size: 15px; background: linear-gradient(135deg, #6366f1, #a855f7);">🤖</div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 750;">Create Autonomous DevOps Bot</h3>
+                        <span style="font-size: 11px; color: var(--text-muted);">Architect multi-step autonomous workflows using Mistral AI and connected MCP servers</span>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeBotCreatorModal()">&times;</button>
+            </div>
+
+            <div class="modal-body" style="padding: 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 6px;">
+                        📝 Natural Language Instructions (What should this bot do?)
+                    </label>
+                    <textarea id="bot-prompt-input" class="chat-input" style="width: 100%; height: 95px; resize: vertical; font-family: var(--font-sans); line-height: 1.4;" placeholder="e.g. 1. Monitor container 'java-app' logs for 'ERROR'&#10;2. Immediately create a ServiceNow incident ticket&#10;3. Run AI Root Cause Analysis (RCA) from the stack trace&#10;4. Update the ticket with the RCA report&#10;5. Correlate with recent GitHub repo commits"></textarea>
+                </div>
+
+                <!-- Quick Prompt Chips -->
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                    <span style="font-size: 11px; color: var(--text-muted);">💡 Example Workflows:</span>
+                    <button class="btn-chip-action" onclick="applyBotTemplate('sre')">☕ Java Container SRE Watchdog</button>
+                    <button class="btn-chip-action" onclick="applyBotTemplate('cicd')">🚀 CI/CD Build Failure Auto-Ticket</button>
+                    <button class="btn-chip-action" onclick="applyBotTemplate('sec')">🔒 Security Vulnerability Correlator</button>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end;">
+                    <button id="btn-synthesize-bot" class="btn-key" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white; border: none; padding: 8px 16px; font-weight: 700;" onclick="synthesizeBotPlan()">
+                        🤖 Synthesize Bot with AI
+                    </button>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid var(--border-color); margin: 4px 0;">
+
+                <!-- Synthesized Plan Fields -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Bot Name</label>
+                        <input type="text" id="bot-name-input" class="chat-input" placeholder="e.g. Java Container SRE Watchdog">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Category</label>
+                        <input type="text" id="bot-category-input" class="chat-input" placeholder="e.g. SRE & Incident Automation" value="SRE & Incident Automation">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Target Container</label>
+                        <input type="text" id="bot-container-input" class="chat-input" placeholder="e.g. java-app" value="java-app">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">GitHub Repository</label>
+                        <input type="text" id="bot-repo-input" class="chat-input" placeholder="e.g. shakilmunavary/devops-vsp-sample-app" value="shakilmunavary/devops-vsp-sample-app">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Jenkins Job</label>
+                        <input type="text" id="bot-jenkins-input" class="chat-input" placeholder="e.g. build-java-app" value="build-java-app">
+                    </div>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Description</label>
+                    <input type="text" id="bot-desc-input" class="chat-input" placeholder="Brief summary of bot mission">
+                </div>
+            </div>
+
+            <div class="modal-footer" style="padding: 14px 24px; background: var(--bg-surface); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn-outline" onclick="closeBotCreatorModal()">Cancel</button>
+                <button class="btn-add" id="btn-save-bot" onclick="saveNewBot()">🚀 Deploy Autonomous Bot</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bot Execution History & RCA Modal -->
+    <div class="modal-backdrop" id="bot-logs-modal">
+        <div class="modal-box" style="width: 900px; max-width: 96vw; height: 800px; max-height: 92vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: linear-gradient(90deg, #0f172a, #1e293b); padding: 16px 24px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="brand-logo" style="width: 32px; height: 32px; font-size: 15px; background: linear-gradient(135deg, #10b981, #3b82f6);">📜</div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 750;" id="bot-logs-title">Execution History & AI RCA</h3>
+                        <span style="font-size: 11px; color: var(--text-muted);" id="bot-logs-meta">Live execution telemetry and Root Cause Analysis reports</span>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeBotLogsModal()">&times;</button>
+            </div>
+
+            <div class="modal-body" id="bot-logs-body" style="padding: 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; background: var(--bg-base);">
+                <!-- Dynamic log cards rendered here -->
             </div>
         </div>
     </div>
@@ -1883,6 +2354,438 @@
                 input.disabled = false;
                 input.focus();
             }
+        }
+
+        
+        // ==============================================================================
+        // Autonomous DevOps Bots Dashboard JS Logic
+        // ==============================================================================
+
+        let allBots = {};
+
+        function switchMainView(view) {
+            const serversView = document.getElementById('servers-view');
+            const botsView = document.getElementById('bots-dashboard-view');
+            const tabServers = document.getElementById('view-tab-servers');
+            const tabBots = document.getElementById('view-tab-bots');
+
+            if (view === 'bots') {
+                if (serversView) serversView.style.display = 'none';
+                if (botsView) botsView.style.display = 'block';
+                if (tabServers) tabServers.classList.remove('active');
+                if (tabBots) tabBots.classList.add('active');
+                loadBots();
+            } else {
+                if (serversView) serversView.style.display = 'flex';
+                if (botsView) botsView.style.display = 'none';
+                if (tabServers) tabServers.classList.add('active');
+                if (tabBots) tabBots.classList.remove('active');
+            }
+        }
+
+        async function loadBots() {
+            try {
+                const res = await fetch('/api/bots');
+                const data = await res.json();
+                allBots = data.bots || {};
+                renderBotsGrid();
+            } catch (e) {
+                console.error("Failed to load bots:", e);
+            }
+        }
+
+        function renderBotsGrid() {
+            const container = document.getElementById('bots-grid-container');
+            if (!container) return;
+
+            const botKeys = Object.keys(allBots);
+            let totalRuns = 0;
+            let activeCount = 0;
+            let totalIncidents = 0;
+
+            if (botKeys.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; background: rgba(30, 41, 59, 0.4); border-radius: 14px; border: 1px dashed var(--border-color);">
+                        <h3 style="color: #cbd5e1; margin-bottom: 8px;">No Autonomous Bots Configured</h3>
+                        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">Create your first AI Watchdog bot to monitor containers, perform RCA, and automate ServiceNow tickets.</p>
+                        <button class="btn-add" onclick="openBotCreatorModal()">✨ + Create New AI Bot</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+
+            botKeys.forEach(botId => {
+                const bot = allBots[botId];
+                const isActive = bot.status === 'active';
+                if (isActive) activeCount++;
+                totalRuns += (bot.run_count || 0);
+
+                // Count incident creations in history
+                if (bot.run_history) {
+                    bot.run_history.forEach(r => {
+                        if (r.status === 'incident_created') totalIncidents++;
+                    });
+                }
+
+                const ctx = bot.context_config || {};
+
+                const card = document.createElement('div');
+                card.className = 'bot-card';
+                card.id = `bot-card-${botId}`;
+                card.innerHTML = `
+                    <div class="bot-header">
+                        <div>
+                            <div class="bot-title">
+                                <span>🤖</span> ${escapeHtml(bot.name)}
+                            </div>
+                            <span class="bot-category" style="margin-top: 4px; display: inline-block;">${escapeHtml(bot.category || 'DevOps Automation')}</span>
+                        </div>
+                        <span class="bot-status-pill ${isActive ? 'active' : 'inactive'}" id="bot-status-${botId}">
+                            <span class="pulse-dot" style="background: ${isActive ? '#22c55e' : '#ef4444'};"></span>
+                            ${isActive ? 'Active 🟢' : 'Inactive 🔴'}
+                        </span>
+                    </div>
+
+                    <div class="bot-desc">${escapeHtml(bot.description || bot.instructions)}</div>
+
+                    <div class="bot-context-tags">
+                        <span class="bot-tag">🐳 ${escapeHtml(ctx.container_name || 'java-app')}</span>
+                        <span class="bot-tag">🎫 SNOW Incident</span>
+                        ${ctx.github_repo ? `<span class="bot-tag">🐙 ${escapeHtml(ctx.github_repo.split('/')[1] || ctx.github_repo)}</span>` : ''}
+                        ${ctx.jenkins_job ? `<span class="bot-tag">⚙️ ${escapeHtml(ctx.jenkins_job)}</span>` : ''}
+                    </div>
+
+                    <div class="bot-footer">
+                        <div class="bot-last-run">
+                            <div><strong>Runs:</strong> ${bot.run_count || 0}</div>
+                            <div style="font-size: 10px; color: var(--text-muted);">${bot.last_run ? `Last: ${bot.last_run}` : 'Never executed'}</div>
+                        </div>
+
+                        <div class="bot-actions">
+                            <button class="btn-bot-run" id="btn-run-${botId}" onclick="runBotNow('${botId}')">
+                                ▶️ Run Now
+                            </button>
+                            <button class="btn-bot-action" onclick="toggleBotStatus('${botId}')">
+                                ${isActive ? '⏸️ Pause' : '▶️ Activate'}
+                            </button>
+                            <button class="btn-bot-action" onclick="openBotLogsModal('${botId}')">
+                                📜 Logs & RCA
+                            </button>
+                            <button class="btn-bot-action btn-bot-delete" onclick="deleteBot('${botId}')" title="Delete Bot">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            // Update Metrics Counters
+            document.getElementById('metric-total-bots').textContent = botKeys.length;
+            document.getElementById('metric-active-bots').textContent = activeCount;
+            document.getElementById('metric-total-runs').textContent = totalRuns;
+            document.getElementById('metric-incidents').textContent = totalIncidents;
+        }
+
+        async function runBotNow(botId) {
+            const btn = document.getElementById(`btn-run-${botId}`);
+            const statusPill = document.getElementById(`bot-status-${botId}`);
+            
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `⏳ Running...`;
+            }
+            if (statusPill) {
+                statusPill.className = 'bot-status-pill running';
+                statusPill.innerHTML = `🟡 Running Workflow...`;
+            }
+
+            try {
+                const res = await fetch(`/api/bots/${botId}/run`, { method: 'POST' });
+                const data = await res.json();
+                
+                // Refresh bots list
+                await loadBots();
+
+                // Open logs view to inspect RCA and ServiceNow ticket creation
+                openBotLogsModal(botId);
+
+            } catch (e) {
+                alert("Bot execution failed: " + e);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `▶️ Run Now`;
+                }
+            }
+        }
+
+        async function toggleBotStatus(botId) {
+            try {
+                await fetch(`/api/bots/${botId}/toggle`, { method: 'POST' });
+                await loadBots();
+            } catch (e) {
+                console.error("Failed to toggle bot status:", e);
+            }
+        }
+
+        async function deleteBot(botId) {
+            if (!confirm(`Are you sure you want to delete this bot (${botId})?`)) return;
+            try {
+                await fetch(`/api/bots/${botId}`, { method: 'DELETE' });
+                await loadBots();
+            } catch (e) {
+                alert("Failed to delete bot: " + e);
+            }
+        }
+
+        function openBotCreatorModal() {
+            document.getElementById('bot-creator-modal').classList.add('active');
+            applyBotTemplate('sre');
+        }
+
+        function closeBotCreatorModal() {
+            document.getElementById('bot-creator-modal').classList.remove('active');
+        }
+
+        function applyBotTemplate(type) {
+            const prompt = document.getElementById('bot-prompt-input');
+            const name = document.getElementById('bot-name-input');
+            const cat = document.getElementById('bot-category-input');
+            const container = document.getElementById('bot-container-input');
+            const repo = document.getElementById('bot-repo-input');
+            const jenkins = document.getElementById('bot-jenkins-input');
+            const desc = document.getElementById('bot-desc-input');
+
+            if (type === 'sre') {
+                prompt.value = "1. Monitor container 'java-app' logs for 'ERROR' or exceptions\n2. Immediately create a ServiceNow incident ticket\n3. Perform quick AI RCA from the error snippet\n4. Update the ServiceNow ticket with RCA findings\n5. Correlate with recent GitHub repo commits";
+                name.value = "Java Container SRE Watchdog";
+                cat.value = "SRE & Incident Automation";
+                container.value = "java-app";
+                repo.value = "shakilmunavary/devops-vsp-sample-app";
+                jenkins.value = "build-java-app";
+                desc.value = "Monitors Java Docker container logs, diagnoses exceptions via AI RCA, and manages ServiceNow incident lifecycle.";
+            } else if (type === 'cicd') {
+                prompt.value = "1. Monitor Jenkins CI/CD job 'build-java-app' for build failures\n2. Extract build console logs and diagnose compilation / test failure\n3. Create ServiceNow incident ticket with root cause\n4. Notify commit authors on GitHub";
+                name.value = "CI/CD Pipeline Failure Auto-Ticket";
+                cat.value = "CI/CD Orchestration";
+                container.value = "jenkins-agent";
+                repo.value = "shakilmunavary/devops-vsp-sample-app";
+                jenkins.value = "build-java-app";
+                desc.value = "Detects broken Jenkins builds, extracts failure stack traces, and creates remediating ServiceNow tickets.";
+            } else if (type === 'sec') {
+                prompt.value = "1. Correlate security alert logs from container 'java-app'\n2. Check GitHub Dependabot and secret scanning alerts\n3. Create High-Priority ServiceNow ticket for security patch";
+                name.value = "Security Vulnerability Correlator";
+                cat.value = "Security & Compliance";
+                container.value = "java-app";
+                repo.value = "shakilmunavary/devops-vsp-sample-app";
+                jenkins.value = "security-scan-job";
+                desc.value = "Correlates container CVE vulnerabilities with GitHub security scans and escalates tickets.";
+            }
+        }
+
+        async function synthesizeBotPlan() {
+            const prompt = document.getElementById('bot-prompt-input').value.trim();
+            if (!prompt) {
+                alert("Please provide instructions for the bot.");
+                return;
+            }
+
+            const btn = document.getElementById('btn-synthesize-bot');
+            btn.disabled = true;
+            btn.innerHTML = `⏳ AI Synthesizing Plan...`;
+
+            try {
+                const res = await fetch('/api/bots/synthesize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+                const plan = await res.json();
+
+                if (plan.name) document.getElementById('bot-name-input').value = plan.name;
+                if (plan.category) document.getElementById('bot-category-input').value = plan.category;
+                if (plan.description) document.getElementById('bot-desc-input').value = plan.description;
+                if (plan.context_config) {
+                    if (plan.context_config.container_name) document.getElementById('bot-container-input').value = plan.context_config.container_name;
+                    if (plan.context_config.github_repo) document.getElementById('bot-repo-input').value = plan.context_config.github_repo;
+                    if (plan.context_config.jenkins_job) document.getElementById('bot-jenkins-input').value = plan.context_config.jenkins_job;
+                }
+            } catch (e) {
+                alert("Synthesis failed: " + e);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `🤖 Synthesize Bot with AI`;
+            }
+        }
+
+        async function saveNewBot() {
+            const name = document.getElementById('bot-name-input').value.trim();
+            const instructions = document.getElementById('bot-prompt-input').value.trim();
+            const category = document.getElementById('bot-category-input').value.trim();
+            const desc = document.getElementById('bot-desc-input').value.trim();
+            const container = document.getElementById('bot-container-input').value.trim();
+            const repo = document.getElementById('bot-repo-input').value.trim();
+            const jenkins = document.getElementById('bot-jenkins-input').value.trim();
+
+            if (!name || !instructions) {
+                alert("Please fill in Bot Name and Instructions.");
+                return;
+            }
+
+            const botData = {
+                id: `bot_${name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now().toString().slice(-4)}`,
+                name: name,
+                category: category || 'DevOps Automation',
+                description: desc || instructions,
+                instructions: instructions,
+                status: 'active',
+                trigger_type: 'interval',
+                interval_seconds: 120,
+                context_config: {
+                    container_name: container || 'java-app',
+                    github_repo: repo || '',
+                    jenkins_job: jenkins || '',
+                    snow_urgency: '2',
+                    snow_impact: '2'
+                },
+                tools_required: ['servicenow', 'github', 'jenkins']
+            };
+
+            const btn = document.getElementById('btn-save-bot');
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/bots', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(botData)
+                });
+                const result = await res.json();
+                closeBotCreatorModal();
+                await loadBots();
+            } catch (e) {
+                alert("Failed to save bot: " + e);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function openBotLogsModal(botId) {
+            const modal = document.getElementById('bot-logs-modal');
+            const body = document.getElementById('bot-logs-body');
+            const title = document.getElementById('bot-logs-title');
+            
+            modal.classList.add('active');
+            body.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px;">⏳ Fetching execution history...</div>';
+
+            try {
+                const res = await fetch(`/api/bots/${botId}/logs`);
+                const data = await res.json();
+
+                title.innerHTML = `📜 ${escapeHtml(data.name || botId)} - Execution Telemetry`;
+
+                const history = data.run_history || [];
+                if (history.length === 0) {
+                    body.innerHTML = `
+                        <div style="text-align: center; color: var(--text-muted); padding: 40px;">
+                            <h3>No Execution History Yet</h3>
+                            <p style="font-size: 13px; margin-top: 6px;">Click <strong>▶️ Run Now</strong> on the dashboard to trigger this bot's autonomous workflow.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                body.innerHTML = '';
+
+                history.forEach((run, idx) => {
+                    const rca = run.rca || {};
+                    const isAlert = run.status === 'incident_created';
+
+                    const card = document.createElement('div');
+                    card.style.background = 'var(--bg-surface)';
+                    card.style.border = isAlert ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid var(--border-color)';
+                    card.style.borderRadius = '12px';
+                    card.style.padding = '18px';
+
+                    let stepsHtml = '';
+                    if (run.steps) {
+                        stepsHtml = run.steps.map(s => `
+                            <div class="timeline-step">
+                                <div class="timeline-step-header">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span class="timeline-step-num">Step ${s.step}</span>
+                                        <strong style="font-size: 13px; color: #f8fafc;">${escapeHtml(s.name)}</strong>
+                                    </div>
+                                    <span class="badge ${s.status === 'success' ? 'badge-ok' : (s.status === 'alert' ? 'badge-err' : 'badge-warn')}">
+                                        ${s.status.toUpperCase()}
+                                    </span>
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-muted);">${escapeHtml(s.details || '')}</div>
+                                ${s.mcp_output ? `<pre class="code-block" style="margin-top: 6px; font-size: 11px; max-height: 120px; overflow-y: auto;"><code>${escapeHtml(s.mcp_output)}</code></pre>` : ''}
+                            </div>
+                        `).join('');
+                    }
+
+                    let rcaHtml = '';
+                    if (rca.root_cause) {
+                        rcaHtml = `
+                            <div class="rca-box">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                    <h4 style="color: #c084fc; font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 6px;">
+                                        🧠 Mistral AI Root Cause Analysis (RCA)
+                                    </h4>
+                                    <span class="badge badge-warn">${escapeHtml(rca.severity || 'HIGH')} SEVERITY</span>
+                                </div>
+                                <div class="rca-field">
+                                    <div class="rca-field-title">🔍 Root Cause:</div>
+                                    <div style="color: #f1f5f9; font-size: 13px;">${escapeHtml(rca.root_cause)}</div>
+                                </div>
+                                <div class="rca-field">
+                                    <div class="rca-field-title">🧩 Affected Component:</div>
+                                    <div style="color: #cbd5e1; font-size: 12px; font-family: var(--font-mono);">${escapeHtml(rca.affected_component || 'N/A')}</div>
+                                </div>
+                                <div class="rca-field">
+                                    <div class="rca-field-title">🛠️ Recommended Remediation:</div>
+                                    <div style="color: #4ade80; font-size: 12px;">${escapeHtml(rca.recommended_fix || 'Scale connection pool and review transactions')}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 18px;">${isAlert ? '🚨' : '✅'}</span>
+                                <div>
+                                    <h4 style="font-size: 14px; font-weight: 750; color: #f8fafc;">${escapeHtml(run.summary || 'Execution Trace')}</h4>
+                                    <span style="font-size: 11px; color: var(--text-muted);">${escapeHtml(run.timestamp)} • Trigger: ${escapeHtml(run.trigger || 'Manual')} • Duration: ${run.duration_seconds || 1.2}s</span>
+                                </div>
+                            </div>
+                            <span class="badge ${isAlert ? 'badge-err' : 'badge-ok'}">
+                                ${isAlert ? 'INCIDENT CREATED' : 'HEALTHY'}
+                            </span>
+                        </div>
+
+                        ${rcaHtml}
+
+                        <div class="step-timeline">
+                            ${stepsHtml}
+                        </div>
+                    `;
+
+                    body.appendChild(card);
+                });
+
+            } catch (e) {
+                body.innerHTML = `<div style="color: #ef4444; padding: 20px;">Failed to load logs: ${e}</div>`;
+            }
+        }
+
+        function closeBotLogsModal() {
+            document.getElementById('bot-logs-modal').classList.remove('active');
         }
 
         function toggleRawOutput(id) {

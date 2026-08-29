@@ -25,6 +25,7 @@ from mistral_service import (
     get_mistral_api_key, set_mistral_api_key, call_mistral_mcp_architect,
     sanitize_tool_parameters, chat_with_mcp_architect, chat_with_mcp_agent, session_mgr
 )
+from bot_engine import bot_registry, run_bot_workflow, synthesize_bot_with_mistral
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_JSON_PATH = os.path.join(BASE_DIR, "config.json")
@@ -893,6 +894,79 @@ def agent_chat_tester():
     )
 
     return jsonify(result)
+
+
+# ==============================================================================
+# Autonomous DevOps Bots Dashboard Endpoints
+# ==============================================================================
+
+@app.route("/api/bots", methods=["GET"])
+def get_all_bots():
+    """Retrieve all configured autonomous bots and their metadata."""
+    return jsonify(bot_registry.load_all())
+
+
+@app.route("/api/bots", methods=["POST"])
+def save_bot():
+    """Create or update a bot."""
+    data = request.get_json() or {}
+    if not data.get("name") or not data.get("instructions"):
+        return jsonify({"error": "Bot name and instructions are required"}), 400
+    saved = bot_registry.create_or_update_bot(data)
+    return jsonify({"success": True, "bot": saved})
+
+
+@app.route("/api/bots/synthesize", methods=["POST"])
+def synthesize_bot():
+    """Use Mistral AI to architect a bot from natural language."""
+    data = request.get_json() or {}
+    prompt = data.get("prompt", "").strip()
+    if not prompt:
+        return jsonify({"error": "Prompt is required"}), 400
+    registry = load_server_registry()
+    servers = registry.get("servers", {})
+    bot_spec = synthesize_bot_with_mistral(prompt, servers)
+    return jsonify(bot_spec)
+
+
+@app.route("/api/bots/<bot_id>/run", methods=["POST"])
+def trigger_bot_run(bot_id):
+    """Trigger an immediate execution of an autonomous bot workflow."""
+    result = run_bot_workflow(bot_id, trigger_reason="Manual Web Studio Trigger")
+    return jsonify(result)
+
+
+@app.route("/api/bots/<bot_id>/toggle", methods=["POST"])
+def toggle_bot_status(bot_id):
+    """Toggle bot active/inactive state."""
+    new_status = bot_registry.toggle_status(bot_id)
+    if new_status is None:
+        return jsonify({"error": "Bot not found"}), 404
+    return jsonify({"success": True, "status": new_status})
+
+
+@app.route("/api/bots/<bot_id>", methods=["DELETE"])
+def delete_bot(bot_id):
+    """Delete a bot from the registry."""
+    success = bot_registry.delete_bot(bot_id)
+    if not success:
+        return jsonify({"error": "Bot not found"}), 404
+    return jsonify({"success": True})
+
+
+@app.route("/api/bots/<bot_id>/logs", methods=["GET"])
+def get_bot_logs(bot_id):
+    """Retrieve execution history and RCA logs for a bot."""
+    bot = bot_registry.get_bot(bot_id)
+    if not bot:
+        return jsonify({"error": "Bot not found"}), 404
+    return jsonify({
+        "bot_id": bot_id,
+        "name": bot.get("name"),
+        "run_count": bot.get("run_count", 0),
+        "last_run": bot.get("last_run"),
+        "run_history": bot.get("run_history", [])
+    })
 
 
 def main():
