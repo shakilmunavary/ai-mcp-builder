@@ -207,7 +207,13 @@ def {fn_name}(path_or_params: Optional[Dict[str, Any]] = None, **kwargs) -> str:
         args.update(path_or_params)
         
     target_endpoint = "{endpoint}"
-    if target_endpoint.strip("/") in ["repos", "repositories"]:
+    if " or " in target_endpoint:
+        target_endpoint = target_endpoint.split(" or ")[0].strip()
+    if " OR " in target_endpoint:
+        target_endpoint = target_endpoint.split(" OR ")[0].strip()
+    if "," in target_endpoint:
+        target_endpoint = target_endpoint.split(",")[0].strip()
+    if target_endpoint.strip("/") in ["repos", "repositories", "list_repos", "list_repositories", "get_repos"]:
         target_endpoint = "/user/repos"
 
     # Substitute parameters passed in tool call
@@ -248,6 +254,15 @@ def {fn_name}(path_or_params: Optional[Dict[str, Any]] = None, **kwargs) -> str:
         with httpx.Client(verify=False, auth=auth, headers=headers, timeout=20.0, follow_redirects=True) as client:
             if "{method}" == "GET":
                 res = client.get(url, params=args)
+                if res.status_code == 404 and "/orgs/" in url:
+                    alt_url = url.replace("/orgs/", "/users/")
+                    res2 = client.get(alt_url, params=args)
+                    if res2.status_code in [200, 201, 202, 204]:
+                        res = res2
+                    else:
+                        res3 = client.get(f"{{base}}/user/repos", params=args)
+                        if res3.status_code in [200, 201, 202, 204]:
+                            res = res3
             elif "{method}" == "DELETE":
                 res = client.delete(url, params=args)
             elif "{method}" == "PUT":
