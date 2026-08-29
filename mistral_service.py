@@ -205,67 +205,23 @@ session_mgr = SessionManager()
 
 def chat_with_mcp_architect(session_id: Optional[str], user_message: str) -> Dict[str, Any]:
     """
-    Main multi-turn interactive architect engine:
-    1. Manages session memory.
-    2. Uses canonical deterministic blueprints for recognized enterprise tools.
-    3. Handles multi-turn conversational refinements with Codestral / Mistral Large.
+    100% Dynamic Live Mistral AI Architect:
+    - NO hardcoded intercepts or cached blueprints.
+    - Every user request goes directly to Mistral AI (Codestral / Mistral Large) to reason and synthesize bespoke, comprehensive end-to-end tool schemas.
+    - Manages multi-turn conversation memory per session_id.
     """
     session = session_mgr.get_or_create(session_id)
     user_message = user_message.strip()
     session.add_message("user", user_message)
 
     api_key = get_mistral_api_key()
-
-    # If first turn in session and message matches a canonical enterprise suite
-    if not session.current_spec:
-        canonical = find_platform_by_query(user_message)
-        if canonical:
-            session.current_spec = {
-                "is_valid": True,
-                "platform_id": canonical["id"],
-                "platform_name": canonical["name"],
-                "category": canonical["category"],
-                "description": canonical["description"],
-                "fields": canonical["fields"],
-                "tools": canonical["tools"]
-            }
-            tool_count = len(canonical["tools"])
-            reply = (
-                f"👋 I have initialized the **{canonical['name']}** enterprise MCP suite with "
-                f"**{tool_count} standardized tools** across Queries, Actions, and Admin workflows.\n\n"
-                f"You can review the tools below, ask questions about specific parameters, request additional tools, "
-                f"or click **Proceed to Build** when ready."
-            )
-            session.add_message("assistant", reply)
-            return {
-                "session_id": session.session_id,
-                "reply": reply,
-                "spec": session.current_spec,
-                "is_valid": True
-            }
-
-    # If no Mistral API key is configured, provide deterministic fallback
     if not api_key:
-        canonical = find_platform_by_query(user_message)
-        if canonical:
-            session.current_spec = {
-                "is_valid": True,
-                "platform_id": canonical["id"],
-                "platform_name": canonical["name"],
-                "category": canonical["category"],
-                "description": canonical["description"],
-                "fields": canonical["fields"],
-                "tools": canonical["tools"]
-            }
-            reply = f"Initialized standard {canonical['name']} suite with {len(canonical['tools'])} tools."
-            return {"session_id": session.session_id, "reply": reply, "spec": session.current_spec, "is_valid": True}
-        else:
-            return {
-                "session_id": session.session_id,
-                "reply": "⚠️ MISTRAL_API_KEY is not configured in Settings. Please add your key to enable dynamic AI customization.",
-                "spec": session.current_spec,
-                "is_valid": False
-            }
+        return {
+            "session_id": session.session_id,
+            "reply": "⚠️ **Mistral API Key Required**: Please click the **🔑 Mistral API Key** button in the top navigation bar to configure your key. Once added, I will dynamically architect your full server in real-time.",
+            "spec": session.current_spec,
+            "is_valid": False
+        }
 
     # Multi-turn prompt assembly for Mistral LLM
     context_prompt = ""
