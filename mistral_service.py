@@ -11,7 +11,7 @@ import httpx
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 
-from platform_specs import find_platform_by_query, PLATFORM_SPECS
+
 
 logger = logging.getLogger("mistral_service")
 

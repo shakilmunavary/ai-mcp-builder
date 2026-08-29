@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 # Load root environment variables
 load_dotenv()
 
-from platform_specs import get_all_platforms, get_platform_spec, find_platform_by_query, GITHUB_ENTERPRISE_TOOLS, PLATFORM_SPECS
+from platform_specs import get_all_platforms, get_platform_spec, find_platform_by_query
 from gateway_manager import gateway_mgr, get_current_gateway_api_key, set_current_gateway_api_key
 from mistral_service import (
     get_mistral_api_key, set_mistral_api_key, call_mistral_mcp_architect,
@@ -167,17 +167,7 @@ def get_headers_and_auth(creds: Dict[str, str]):
         desc = t.get("description", f"Execute {fn_name}").replace('"', '\\"')
         method = t.get("method", "POST" if any(k in fn_name for k in ["create", "trigger", "post", "update", "delete", "add", "merge", "cancel", "lock", "start", "stop", "abort", "apply", "patch", "upload", "deploy", "submit", "close", "reopen", "put"]) else "GET").upper()
         
-        endpoint = t.get("endpoint") or t.get("path") or ""
-        if not endpoint:
-            if "incident" in fn_name or "change" in fn_name or "problem" in fn_name or "cmdb" in fn_name:
-                table_target = "incident" if "incident" in fn_name else ("change_request" if "change" in fn_name else ("problem" if "problem" in fn_name else "cmdb_ci"))
-                endpoint = f"/api/now/table/{table_target}"
-            elif "repo" in fn_name and ("list" in fn_name or "get" in fn_name):
-                endpoint = "/user/repos"
-            elif "job" in fn_name or "build" in fn_name or "jenkins" in fn_name:
-                endpoint = "/api/json"
-            else:
-                endpoint = f"/{fn_name}"
+        endpoint = t.get("endpoint") or t.get("path") or f"/{fn_name}"
 
         code += f'''
 
@@ -204,8 +194,6 @@ def {fn_name}(path_or_params: Optional[Dict[str, Any]] = None, **kwargs) -> str:
     try:
         with httpx.Client(verify=False, auth=auth, headers=headers, timeout=20.0, follow_redirects=True) as client:
             if "{method}" == "GET":
-                if "api/now/table" in url and "sysparm_limit" not in args and "limit" in args:
-                    args["sysparm_limit"] = args.pop("limit")
                 res = client.get(url, params=args)
             elif "{method}" == "DELETE":
                 res = client.delete(url, params=args)
@@ -446,79 +434,44 @@ def build_server():
     dynamic_tools = payload.get("tools", None)
 
     spec = get_platform_spec(platform_id)
+    server_name = (spec.get("name") if spec else "") or config_values.get("custom_name", "").strip() or platform_id.replace("_", " ").title()
+    server_key = re.sub(r'[^a-zA-Z0-9_]', '_', platform_id or server_name.lower())
+    base_url = config_values.get("base_url", config_values.get("instance_url", config_values.get("jenkins_url", "https://api.service.com")))
+    auth_header = config_values.get("auth_header", config_values.get("api_token", config_values.get("token", config_values.get("password", config_values.get("jenkins_password", "")))))
+    
+    raw_tools = dynamic_tools or (spec.get("tools") if spec else []) or [
+        {"name": "query_endpoint", "description": f"Send dynamic GET request to {server_name}", "endpoint": "/status", "method": "GET"},
+        {"name": "post_endpoint", "description": f"Send dynamic POST payload to {server_name}", "endpoint": "/action", "method": "POST"}
+    ]
+    tools_list = sanitize_tool_parameters(raw_tools)
 
-    if not spec:
-        custom_name = config_values.get("custom_name", "").strip() or platform_id.replace("_", " ").title()
-        server_key = re.sub(r'[^a-zA-Z0-9_]', '_', (platform_id or custom_name).lower())
-        base_url = config_values.get("base_url", config_values.get("instance_url", "https://api.service.com"))
-        auth_header = config_values.get("auth_header", config_values.get("api_token", config_values.get("password", "")))
-        
-        raw_tools = dynamic_tools or [
-            {"name": "query_endpoint", "description": f"Send dynamic GET request to {custom_name}", "sample_args": {"path": "/status"}},
-            {"name": "post_endpoint", "description": f"Send dynamic POST payload to {custom_name}", "sample_args": {"path": "/action"}}
-        ]
-        tools_list = sanitize_tool_parameters(raw_tools)
+    server_dir = os.path.join(BASE_DIR, "mcp_servers", server_key)
+    os.makedirs(server_dir, exist_ok=True)
+    server_script = os.path.join(server_dir, "server.py")
 
-        server_dir = os.path.join(BASE_DIR, "mcp_servers", server_key)
-        os.makedirs(server_dir, exist_ok=True)
-        server_script = os.path.join(server_dir, "server.py")
+    code = generate_dynamic_mcp_server_script(server_key, server_name, base_url, auth_header, tools_list)
+    with open(server_script, "w", encoding="utf-8") as f:
+        f.write(code)
 
-        code = generate_dynamic_mcp_server_script(server_key, custom_name, base_url, auth_header, tools_list)
-        with open(server_script, "w", encoding="utf-8") as f:
-            f.write(code)
+    write_server_env_file(server_key, config_values)
 
-        write_server_env_file(server_key, config_values)
+    if enabled_tools is None:
+        enabled_tools = [t["name"] for t in tools_list]
 
-        if enabled_tools is None:
-            enabled_tools = [t["name"] for t in tools_list]
+    filtered_tools = [t for t in tools_list if t["name"] in enabled_tools]
 
-        filtered_tools = [t for t in tools_list if t["name"] in enabled_tools]
-
-        server_entry = {
-            "id": server_key,
-            "name": custom_name,
-            "description": f"Dynamically synthesized FastMCP Server for {custom_name}",
-            "category": "AI Synthesized Tool",
-            "transport": "stdio",
-            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "all_tools": tools_list,
-            "enabled_tools": enabled_tools,
-            "tools": filtered_tools
-        }
-        platform_id = server_key
-
-    else:
-        raw_tools = dynamic_tools or spec["tools"]
-        all_tools = sanitize_tool_parameters(raw_tools)
-        server_script = ensure_server_script(platform_id, config_values, all_tools)
-        write_server_env_file(platform_id, config_values)
-
-        service_name = f"mcp_{platform_id}"
-        try:
-            for field in spec["fields"]:
-                key = field["key"]
-                val = config_values.get(key, field.get("default", ""))
-                if val is not None:
-                    keyring.set_password(service_name, key, str(val))
-        except Exception:
-            pass
-
-        if enabled_tools is None:
-            enabled_tools = [t["name"] for t in all_tools]
-
-        filtered_tools = [t for t in all_tools if t["name"] in enabled_tools]
-
-        server_entry = {
-            "id": platform_id,
-            "name": spec["name"],
-            "description": spec["description"],
-            "category": spec.get("category", "DevOps"),
-            "transport": "stdio",
-            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "all_tools": all_tools,
-            "enabled_tools": enabled_tools,
-            "tools": filtered_tools
-        }
+    server_entry = {
+        "id": server_key,
+        "name": server_name,
+        "description": spec.get("description") if spec else f"Dynamically synthesized FastMCP Server for {server_name}",
+        "category": spec.get("category") if spec else "AI Synthesized Tool",
+        "transport": "stdio",
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "all_tools": tools_list,
+        "enabled_tools": enabled_tools,
+        "tools": filtered_tools
+    }
+    platform_id = server_key
 
     # Step: Run Self-Evaluation Pre-Flight Smoke Test before publishing
     eval_result = evaluate_server_health(platform_id, server_script, filtered_tools)
