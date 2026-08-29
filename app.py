@@ -326,6 +326,106 @@ def {fn_name}(limit: Optional[int] = 20, state: Optional[str] = None, query: Opt
     except Exception as e:
         return f"Error executing {fn_name}: {{e}}"
 '''
+        elif "github" in server_id.lower() or "github" in server_name.lower():
+            if fn_name == "list_repos":
+                code += f'''
+
+@mcp.tool()
+def {fn_name}(limit: Optional[int] = 30, org: Optional[str] = None, path_or_params: Optional[Dict[str, Any]] = None) -> str:
+    """{desc}"""
+    creds = get_credentials()
+    base = creds["base_url"]
+    owner = org or os.environ.get("ORG") or creds.get("username")
+    
+    headers, auth = get_headers_and_auth(creds)
+    headers["Accept"] = "application/vnd.github.v3+json"
+    
+    params = {{"per_page": limit, "sort": "updated"}}
+    url = f"{{base}}/user/repos" if creds.get("auth_val") else (f"{{base}}/users/{{owner}}/repos" if owner else f"{{base}}/user/repos")
+    
+    try:
+        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0) as client:
+            res = client.get(url, params=params)
+            if res.status_code == 404 and owner:
+                res = client.get(f"{{base}}/orgs/{{owner}}/repos", params=params)
+            if res.status_code in [200, 201]:
+                return f"**GitHub {fn_name} ({{res.status_code}}):**\\n```json\\n{{res.text[:4000]}}\\n```"
+            return f"GitHub API Error ({{res.status_code}}): {{res.text[:500]}}"
+    except Exception as e:
+        return f"Error executing {fn_name}: {{e}}"
+'''
+            elif fn_name in ["list_issues", "get_issues"]:
+                code += f'''
+
+@mcp.tool()
+def {fn_name}(repo: Optional[str] = None, state: Optional[str] = "open", limit: Optional[int] = 30, path_or_params: Optional[Dict[str, Any]] = None) -> str:
+    """{desc}"""
+    creds = get_credentials()
+    base = creds["base_url"]
+    owner = os.environ.get("ORG") or creds.get("username", "shakilmunavary")
+    target_repo = repo or (path_or_params or {{}}).get("repo", "")
+    if "/" not in target_repo and owner:
+        target_repo = f"{{owner}}/{{target_repo}}"
+    url = f"{{base}}/repos/{{target_repo}}/issues"
+    headers, auth = get_headers_and_auth(creds)
+    try:
+        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0) as client:
+            res = client.get(url, params={{"state": state, "per_page": limit}})
+            if res.status_code in [200, 201]:
+                return f"**GitHub {fn_name} ({{res.status_code}}):**\\n```json\\n{{res.text[:4000]}}\\n```"
+            return f"GitHub API Error ({{res.status_code}}): {{res.text[:500]}}"
+    except Exception as e:
+        return f"Error executing {fn_name}: {{e}}"
+'''
+            elif fn_name in ["list_pull_requests", "get_pull_requests"]:
+                code += f'''
+
+@mcp.tool()
+def {fn_name}(repo: Optional[str] = None, state: Optional[str] = "open", limit: Optional[int] = 30, path_or_params: Optional[Dict[str, Any]] = None) -> str:
+    """{desc}"""
+    creds = get_credentials()
+    base = creds["base_url"]
+    owner = os.environ.get("ORG") or creds.get("username", "shakilmunavary")
+    target_repo = repo or (path_or_params or {{}}).get("repo", "")
+    if "/" not in target_repo and owner:
+        target_repo = f"{{owner}}/{{target_repo}}"
+    url = f"{{base}}/repos/{{target_repo}}/pulls"
+    headers, auth = get_headers_and_auth(creds)
+    try:
+        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0) as client:
+            res = client.get(url, params={{"state": state, "per_page": limit}})
+            if res.status_code in [200, 201]:
+                return f"**GitHub {fn_name} ({{res.status_code}}):**\\n```json\\n{{res.text[:4000]}}\\n```"
+            return f"GitHub API Error ({{res.status_code}}): {{res.text[:500]}}"
+    except Exception as e:
+        return f"Error executing {fn_name}: {{e}}"
+'''
+            else:
+                code += f'''
+
+@mcp.tool()
+def {fn_name}(repo: Optional[str] = None, path_or_params: Optional[Dict[str, Any]] = None) -> str:
+    """{desc}"""
+    creds = get_credentials()
+    base = creds["base_url"]
+    owner = os.environ.get("ORG") or creds.get("username", "shakilmunavary")
+    target_repo = repo or (path_or_params or {{}}).get("repo", "")
+    if target_repo and "/" not in target_repo and owner:
+        target_repo = f"{{owner}}/{{target_repo}}"
+    url = f"{{base}}/repos/{{target_repo}}" if target_repo else f"{{base}}/user/repos"
+    headers, auth = get_headers_and_auth(creds)
+    try:
+        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0) as client:
+            if "{method}" == "GET":
+                res = client.get(url, params=path_or_params or {{}})
+            else:
+                res = client.post(url, json=path_or_params or {{}})
+            if res.status_code in [200, 201, 202]:
+                return f"**GitHub {fn_name} ({{res.status_code}}):**\\n```json\\n{{res.text[:4000]}}\\n```"
+            return f"GitHub API Error ({{res.status_code}}): {{res.text[:500]}}"
+    except Exception as e:
+        return f"Error executing {fn_name}: {{e}}"
+'''
         else:
             code += f'''
 
