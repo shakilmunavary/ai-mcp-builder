@@ -1117,11 +1117,24 @@
                     }
                 }
 
+                const serverScope = s.scope || {};
+
                 if (t.sample_args && typeof t.sample_args === 'object') {
                     for (const [sName, sVal] of Object.entries(t.sample_args)) {
                         const sLower = sName.toLowerCase();
                         if (credKeys.includes(sLower) || credKeys.some(k => sLower.endsWith('_' + k))) continue;
-                        cleanSampleArgs[sName] = sVal;
+                        
+                        let actualVal = sVal;
+                        if (serverScope[sLower]) {
+                            actualVal = serverScope[sLower];
+                        } else if (serverScope.org && (sLower === 'org' || sLower === 'owner' || sLower === 'organization')) {
+                            actualVal = serverScope.org;
+                        } else if (serverScope.username && (sLower === 'username' || sLower === 'user')) {
+                            actualVal = serverScope.username;
+                        } else if (serverScope.project && (sLower === 'project' || sLower === 'project_key')) {
+                            actualVal = serverScope.project;
+                        }
+                        cleanSampleArgs[sName] = actualVal;
                     }
                 }
 
@@ -1140,7 +1153,7 @@
                             </div>
                         `;
                         if (!cleanSampleArgs[pName] && isRequired) {
-                            cleanSampleArgs[pName] = "example_value";
+                            cleanSampleArgs[pName] = serverScope.org || serverScope.project || "example_value";
                         }
                     }
                     paramsHtml += '</div></div>';

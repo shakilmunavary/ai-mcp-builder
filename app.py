@@ -41,8 +41,26 @@ def load_server_registry() -> dict:
     try:
         with open(CONFIG_JSON_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
-            # Ensure all server tools are sanitized from accidental credentials
-            for s_id, s_data in data.get("servers", {}).items():
+            for s_id, s_data in (data.get("servers", {}) or {}).items():
+                env_file = os.path.join(BASE_DIR, "mcp_servers", s_id, ".env")
+                scopes = {}
+                if os.path.exists(env_file):
+                    try:
+                        with open(env_file, "r", encoding="utf-8") as ef:
+                            for line in ef:
+                                line = line.strip()
+                                if line and not line.startswith("#") and "=" in line:
+                                    k, v = line.split("=", 1)
+                                    k_l = k.strip().lower()
+                                    if any(w in k_l for w in ["owner", "org", "organization", "username", "user", "project", "workspace", "account"]):
+                                        scopes[k_l] = v.strip()
+                                        if "owner" in k_l or "org" in k_l:
+                                            scopes["org"] = v.strip()
+                                            scopes["owner"] = v.strip()
+                    except Exception:
+                        pass
+                s_data["scope"] = scopes
+                # Ensure all server tools are sanitized from accidental credentials
                 if "all_tools" in s_data:
                     s_data["all_tools"] = sanitize_tool_parameters(s_data["all_tools"])
                 if "tools" in s_data:
