@@ -8,6 +8,7 @@ import json
 import logging
 import uuid
 import httpx
+import time
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 
@@ -563,4 +564,145 @@ Explain the result directly to the user."""
         return {
             "type": "message",
             "reply": f"⚠️ Agent encountered an error: {str(e)}"
+        }
+
+
+# ==============================================================================
+# Conversational AI Bot Architect Engine
+# ==============================================================================
+
+BOT_ARCHITECT_SYSTEM_PROMPT = """You are the Senior Lead DevOps & SRE Autonomous Bot Architect.
+Your role is to conduct a collaborative, conversational interview with the user to architect an autonomous DevOps workflow bot using their currently connected MCP servers.
+
+CURRENT CONNECTED MCP SERVERS & AVAILABLE TOOLS:
+{mcp_catalog}
+
+CORE PRINCIPLES:
+1. UNDERSTAND & REPEAT:
+   - Always summarize what you understood from the user's requirement clearly in 2-3 bullet points.
+2. VALIDATE AGAINST AVAILABLE MCP TOOLS:
+   - Check if the requested actions can be performed by the connected MCP servers in the catalog above.
+   - If a requested action CANNOT be performed (e.g. user asks for Datadog or Prometheus monitoring or AWS deployment, but no such MCP server is connected), you MUST EXPLICITLY state:
+     "⚠️ Capability Missing: I checked your active MCP servers, and you do not have an MCP server connected for [Tool/Service]. You would need to add an MCP server for [Tool] first, or we can build this workflow using your available servers ({available_server_names})."
+3. DYNAMIC PARAMETER ELICITATION (ZERO HARDCODING):
+   - Never assume static fields like GitHub repo or Jenkins job unless the user's workflow actually uses them.
+   - If the bot only uses ServiceNow + Docker, only ask for Container Name and SNOW details (do NOT ask for GitHub or Jenkins).
+   - If all necessary information is already provided in the prompt, synthesize the complete blueprint immediately.
+4. RESPONSE FORMAT:
+   Always respond in STRICT JSON matching this schema:
+   {
+     "status": "ready" or "clarification_needed" or "capability_missing",
+     "reply": "Markdown explanation with understanding summary, capability validation badges, and any follow-up questions",
+     "validation": {
+       "supported": true,
+       "servers_used": ["servicenow", "jenkins"],
+       "tools_mapped": ["servicenow.create_incident", "jenkins.get_job_details"],
+       "missing_servers": []
+     },
+     "blueprint": {
+       "id": "bot_snake_case_id",
+       "name": "Short Professional Bot Name",
+       "category": "SRE & Incident Automation" or "CI/CD Orchestration" or "Security & Compliance",
+       "description": "1-2 sentence description of bot mission",
+       "trigger_type": "interval",
+       "interval_seconds": 120,
+       "instructions": "Full natural language instructions",
+       "tools_required": ["servicenow", "jenkins"],
+       "context_config": {
+         "container_name": "...",
+         "jenkins_job": "...",
+         "snow_urgency": "2"
+       },
+       "workflow_steps": [
+         {"step": 1, "action": "Monitor container logs", "server": "system", "tool": "log_inspector"},
+         {"step": 2, "action": "Diagnose failure with AI RCA", "server": "system", "tool": "ai_rca"},
+         {"step": 3, "action": "Create ServiceNow Incident", "server": "servicenow", "tool": "create_incident"}
+       ]
+     }
+   }
+"""
+
+
+def chat_with_bot_architect(user_message: str, history: List[Dict[str, str]], servers: Dict[str, Any]) -> Dict[str, Any]:
+    """Conducts a multi-turn conversation to understand requirements, validate MCP capabilities, and build a bot blueprint."""
+    api_key = get_mistral_api_key()
+    if not api_key:
+        return {
+            "status": "clarification_needed",
+            "reply": "⚠️ Mistral API Key is missing. Please configure your key in the top header.",
+            "validation": {"supported": False, "servers_used": [], "tools_mapped": [], "missing_servers": []},
+            "blueprint": None
+        }
+
+    # Format available MCP catalog
+    catalog_lines = []
+    available_names = []
+    for s_id, s_data in servers.items():
+        s_name = s_data.get("name", s_id)
+        available_names.append(s_name)
+        tools = s_data.get("all_tools") or s_data.get("tools") or []
+        t_names = [t.get("name") for t in tools[:12]]
+        catalog_lines.append(f"- Server ID '{s_id}' ({s_name}): Tools [{', '.join(t_names)}]")
+    
+    mcp_catalog = "\n".join(catalog_lines) if catalog_lines else "No active MCP servers connected yet."
+    available_server_names = ", ".join(available_names) if available_names else "None"
+
+    system_prompt = BOT_ARCHITECT_SYSTEM_PROMPT.replace("{mcp_catalog}", mcp_catalog).replace("{available_server_names}", available_server_names)
+
+    messages = [{"role": "system", "content": system_prompt}]
+    for h in history[-8:]:
+        messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
+    messages.append({"role": "user", "content": user_message})
+
+    payload = {
+        "model": DEFAULT_MISTRAL_MODEL,
+        "messages": messages,
+        "temperature": 0.2,
+        "response_format": {"type": "json_object"}
+    }
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        with httpx.Client(timeout=35.0) as client:
+            res = client.post(MISTRAL_API_URL, json=payload, headers=headers)
+            if res.status_code == 429 or res.status_code >= 500:
+                payload["model"] = "mistral-small-latest"
+                res = client.post(MISTRAL_API_URL, json=payload, headers=headers)
+
+            if res.status_code != 200:
+                return {
+                    "status": "clarification_needed",
+                    "reply": f"⚠️ Mistral AI returned status {res.status_code}: {res.text[:200]}",
+                    "validation": {"supported": False, "servers_used": [], "tools_mapped": [], "missing_servers": []},
+                    "blueprint": None
+                }
+
+            data = res.json()
+            raw_json = data["choices"][0]["message"]["content"]
+            parsed = json.loads(raw_json)
+
+            # Ensure consistent fields
+            if "blueprint" in parsed and isinstance(parsed["blueprint"], dict):
+                bp = parsed["blueprint"]
+                if not bp.get("id"):
+                    bp["id"] = f"bot_{int(time.time())}"
+                if not bp.get("status"):
+                    bp["status"] = "active"
+                if not bp.get("trigger_type"):
+                    bp["trigger_type"] = "interval"
+                if not bp.get("interval_seconds"):
+                    bp["interval_seconds"] = 120
+
+            return parsed
+
+    except Exception as e:
+        logger.error(f"Bot architect error: {e}")
+        return {
+            "status": "clarification_needed",
+            "reply": f"⚠️ Architect exception: {str(e)}",
+            "validation": {"supported": False, "servers_used": [], "tools_mapped": [], "missing_servers": []},
+            "blueprint": None
         }

@@ -23,7 +23,8 @@ from platform_specs import get_all_platforms, get_platform_spec, find_platform_b
 from gateway_manager import gateway_mgr, get_current_gateway_api_key, set_current_gateway_api_key
 from mistral_service import (
     get_mistral_api_key, set_mistral_api_key, call_mistral_mcp_architect,
-    sanitize_tool_parameters, chat_with_mcp_architect, chat_with_mcp_agent, session_mgr
+    sanitize_tool_parameters, chat_with_mcp_architect, chat_with_mcp_agent,
+    chat_with_bot_architect, session_mgr
 )
 from bot_engine import bot_registry, run_bot_workflow, synthesize_bot_with_mistral
 
@@ -914,6 +915,23 @@ def save_bot():
         return jsonify({"error": "Bot name and instructions are required"}), 400
     saved = bot_registry.create_or_update_bot(data)
     return jsonify({"success": True, "bot": saved})
+
+
+@app.route("/api/bots/chat_architect", methods=["POST"])
+def bot_architect_chat():
+    """Multi-turn conversational bot architect with intent understanding and capability validation."""
+    data = request.get_json() or {}
+    message = data.get("message", "").strip()
+    history = data.get("history", [])
+
+    if not message:
+        return jsonify({"status": "clarification_needed", "reply": "Please describe what DevOps bot you want to build."}), 400
+
+    registry = load_server_registry()
+    servers = registry.get("servers", {})
+
+    result = chat_with_bot_architect(user_message=message, history=history, servers=servers)
+    return jsonify(result)
 
 
 @app.route("/api/bots/synthesize", methods=["POST"])

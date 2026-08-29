@@ -1273,80 +1273,79 @@
     </div>
 
     
-    <!-- Dynamic Bot Creator Modal -->
+    
+    <!-- Interactive Conversational AI Bot Architect Studio Modal -->
     <div class="modal-backdrop" id="bot-creator-modal">
-        <div class="modal-box" style="width: 860px; max-width: 95vw; height: auto; max-height: 90vh; display: flex; flex-direction: column;">
-            <div class="modal-header" style="background: linear-gradient(90deg, #1e1b4b, #1e293b); padding: 16px 24px;">
+        <div class="modal-box" style="width: 1040px; max-width: 98vw; height: 840px; max-height: 94vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: linear-gradient(90deg, #1e1b4b, #1e293b); padding: 14px 22px;">
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <div class="brand-logo" style="width: 32px; height: 32px; font-size: 15px; background: linear-gradient(135deg, #6366f1, #a855f7);">🤖</div>
                     <div>
-                        <h3 style="font-size: 16px; font-weight: 750;">Create Autonomous DevOps Bot</h3>
-                        <span style="font-size: 11px; color: var(--text-muted);">Architect multi-step autonomous workflows using Mistral AI and connected MCP servers</span>
+                        <h3 style="font-size: 16px; font-weight: 750;">Interactive AI Bot Architect</h3>
+                        <span style="font-size: 11px; color: var(--text-muted);">Conversational discovery, live MCP tool capability validation & dynamic workflow synthesis</span>
                     </div>
                 </div>
-                <button class="modal-close" onclick="closeBotCreatorModal()">&times;</button>
-            </div>
-
-            <div class="modal-body" style="padding: 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
-                <div>
-                    <label style="display: block; font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 6px;">
-                        📝 Natural Language Instructions (What should this bot do?)
-                    </label>
-                    <textarea id="bot-prompt-input" class="chat-input" style="width: 100%; height: 95px; resize: vertical; font-family: var(--font-sans); line-height: 1.4;" placeholder="e.g. 1. Monitor container 'java-app' logs for 'ERROR'&#10;2. Immediately create a ServiceNow incident ticket&#10;3. Run AI Root Cause Analysis (RCA) from the stack trace&#10;4. Update the ticket with the RCA report&#10;5. Correlate with recent GitHub repo commits"></textarea>
-                </div>
-
-                <!-- Quick Prompt Chips -->
-                <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
-                    <span style="font-size: 11px; color: var(--text-muted);">💡 Example Workflows:</span>
-                    <button class="btn-chip-action" onclick="applyBotTemplate('sre')">☕ Java Container SRE Watchdog</button>
-                    <button class="btn-chip-action" onclick="applyBotTemplate('cicd')">🚀 CI/CD Build Failure Auto-Ticket</button>
-                    <button class="btn-chip-action" onclick="applyBotTemplate('sec')">🔒 Security Vulnerability Correlator</button>
-                </div>
-
-                <div style="display: flex; justify-content: flex-end;">
-                    <button id="btn-synthesize-bot" class="btn-key" style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white; border: none; padding: 8px 16px; font-weight: 700;" onclick="synthesizeBotPlan()">
-                        🤖 Synthesize Bot with AI
-                    </button>
-                </div>
-
-                <hr style="border: none; border-top: 1px solid var(--border-color); margin: 4px 0;">
-
-                <!-- Synthesized Plan Fields -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-                    <div>
-                        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Bot Name</label>
-                        <input type="text" id="bot-name-input" class="chat-input" placeholder="e.g. Java Container SRE Watchdog">
-                    </div>
-                    <div>
-                        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Category</label>
-                        <input type="text" id="bot-category-input" class="chat-input" placeholder="e.g. SRE & Incident Automation" value="SRE & Incident Automation">
-                    </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
-                    <div>
-                        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Target Container</label>
-                        <input type="text" id="bot-container-input" class="chat-input" placeholder="e.g. java-app" value="java-app">
-                    </div>
-                    <div>
-                        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">GitHub Repository</label>
-                        <input type="text" id="bot-repo-input" class="chat-input" placeholder="e.g. shakilmunavary/devops-vsp-sample-app" value="shakilmunavary/devops-vsp-sample-app">
-                    </div>
-                    <div>
-                        <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Jenkins Job</label>
-                        <input type="text" id="bot-jenkins-input" class="chat-input" placeholder="e.g. build-java-app" value="build-java-app">
-                    </div>
-                </div>
-
-                <div>
-                    <label style="display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Description</label>
-                    <input type="text" id="bot-desc-input" class="chat-input" placeholder="Brief summary of bot mission">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button class="btn-chip-action" onclick="resetBotArchitectChat()">🧹 Reset Session</button>
+                    <button class="modal-close" onclick="closeBotCreatorModal()">&times;</button>
                 </div>
             </div>
 
-            <div class="modal-footer" style="padding: 14px 24px; background: var(--bg-surface); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
-                <button class="btn-outline" onclick="closeBotCreatorModal()">Cancel</button>
-                <button class="btn-add" id="btn-save-bot" onclick="saveNewBot()">🚀 Deploy Autonomous Bot</button>
+            <!-- Split Screen Body -->
+            <div style="flex: 1; display: flex; overflow: hidden; background: var(--bg-base);">
+                
+                <!-- Left: Multi-Turn Conversation Assistant (58%) -->
+                <div style="flex: 58; display: flex; flex-direction: column; border-right: 1px solid var(--border-color); background: var(--bg-surface);">
+                    <div id="bot-architect-chat-feed" style="flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+                        <!-- Conversational message bubbles rendered here -->
+                    </div>
+
+                    <!-- Quick Suggestions -->
+                    <div style="display: flex; gap: 6px; padding: 8px 16px; background: rgba(15, 23, 42, 0.6); overflow-x: auto; border-top: 1px solid var(--border-color); align-items: center;">
+                        <span style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">💡 Ideas:</span>
+                        <button class="btn-chip-action" onclick="sendQuickBotPrompt('sre')">☕ Java Container SRE Watchdog</button>
+                        <button class="btn-chip-action" onclick="sendQuickBotPrompt('cicd')">⚙️ Jenkins CI/CD Auto-Ticket</button>
+                        <button class="btn-chip-action" onclick="sendQuickBotPrompt('sec')">🔒 Security Vulnerability Correlator</button>
+                    </div>
+
+                    <!-- Input Bar -->
+                    <div class="chat-input-bar" style="padding: 12px 16px; background: var(--bg-surface); border-top: 1px solid var(--border-color);">
+                        <input type="text" id="bot-architect-input" class="chat-input" placeholder="Tell Mistral what bot you want to build (e.g. 'Monitor Jenkins build failures and create a SNOW ticket')..." onkeydown="handleBotArchitectKey(event)">
+                        <button class="btn-send" id="bot-architect-send-btn" onclick="sendBotArchitectMessage()">Send</button>
+                    </div>
+                </div>
+
+                <!-- Right: Live Evolving Blueprint & MCP Tool Validation (42%) -->
+                <div style="flex: 42; display: flex; flex-direction: column; background: rgba(15, 23, 42, 0.7); overflow-y: auto; padding: 20px; gap: 16px;">
+                    <div>
+                        <h4 style="font-size: 13px; font-weight: 800; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                            🔍 Live MCP Capabilities Validation
+                        </h4>
+                        <div id="bot-validation-box" style="display: flex; flex-direction: column; gap: 6px; background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px;">
+                            <span style="font-size: 12px; color: var(--text-muted);">Describe your bot requirement to validate tools against your live MCP servers.</span>
+                        </div>
+                    </div>
+
+                    <div style="flex: 1; display: flex; flex-direction: column;">
+                        <h4 style="font-size: 13px; font-weight: 800; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+                            📋 Synthesized Bot Blueprint
+                        </h4>
+                        <div id="bot-blueprint-card" style="flex: 1; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+                            <div style="text-align: center; color: var(--text-muted); margin: auto; padding: 30px 10px;">
+                                <div style="font-size: 32px; margin-bottom: 8px;">🤖</div>
+                                <h4 style="color: #94a3b8; font-size: 14px;">Blueprint Pending Synthesis</h4>
+                                <p style="font-size: 12px; margin-top: 4px;">Chat with Mistral on the left. Once requirements and parameters are clarified, the live blueprint will appear here.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: auto; padding-top: 10px;">
+                        <button class="btn-add" id="btn-deploy-bot" style="width: 100%; padding: 12px; font-size: 14px; justify-content: center; opacity: 0.5; pointer-events: none;" onclick="deploySynthesizedBot()">
+                            🚀 Deploy Autonomous Bot
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -2541,135 +2540,273 @@
             }
         }
 
+        
+        // ==============================================================================
+        // Interactive Conversational AI Bot Architect JS Logic
+        // ==============================================================================
+
+        let botArchitectHistory = [];
+        let currentSynthesizedBlueprint = null;
+
         function openBotCreatorModal() {
             document.getElementById('bot-creator-modal').classList.add('active');
-            applyBotTemplate('sre');
+            if (botArchitectHistory.length === 0) {
+                resetBotArchitectChat();
+            }
         }
 
         function closeBotCreatorModal() {
             document.getElementById('bot-creator-modal').classList.remove('active');
         }
 
-        function applyBotTemplate(type) {
-            const prompt = document.getElementById('bot-prompt-input');
-            const name = document.getElementById('bot-name-input');
-            const cat = document.getElementById('bot-category-input');
-            const container = document.getElementById('bot-container-input');
-            const repo = document.getElementById('bot-repo-input');
-            const jenkins = document.getElementById('bot-jenkins-input');
-            const desc = document.getElementById('bot-desc-input');
+        function resetBotArchitectChat() {
+            botArchitectHistory = [];
+            currentSynthesizedBlueprint = null;
+            
+            const feed = document.getElementById('bot-architect-chat-feed');
+            feed.innerHTML = `
+                <div class="chat-bubble bot">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 16px;">🤖</span>
+                        <strong style="color: #c084fc; font-size: 13px;">Mistral DevOps Architect</strong>
+                    </div>
+                    <div>
+                        Hello! I am your <strong>Autonomous DevOps Bot Architect</strong>.
+                        <br><br>
+                        Tell me what automation you'd like to build. I will:
+                        <ul style="margin: 6px 0 0 18px; padding: 0; line-height: 1.5;">
+                            <li>Summarize and verify what I understood</li>
+                            <li>Validate your requirement against your live connected MCP tools</li>
+                            <li>Dynamically ask only for the specific parameters needed for your workflow</li>
+                            <li>Generate the live blueprint for 1-click deployment</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
 
+            document.getElementById('bot-validation-box').innerHTML = `
+                <span style="font-size: 12px; color: var(--text-muted);">Describe your bot requirement to validate tools against your live MCP servers.</span>
+            `;
+
+            document.getElementById('bot-blueprint-card').innerHTML = `
+                <div style="text-align: center; color: var(--text-muted); margin: auto; padding: 30px 10px;">
+                    <div style="font-size: 32px; margin-bottom: 8px;">🤖</div>
+                    <h4 style="color: #94a3b8; font-size: 14px;">Blueprint Pending Synthesis</h4>
+                    <p style="font-size: 12px; margin-top: 4px;">Chat with Mistral on the left. Once requirements and parameters are clarified, the live blueprint will appear here.</p>
+                </div>
+            `;
+
+            const deployBtn = document.getElementById('btn-deploy-bot');
+            deployBtn.style.opacity = '0.5';
+            deployBtn.style.pointerEvents = 'none';
+        }
+
+        function sendQuickBotPrompt(type) {
+            const input = document.getElementById('bot-architect-input');
             if (type === 'sre') {
-                prompt.value = "1. Monitor container 'java-app' logs for 'ERROR' or exceptions\n2. Immediately create a ServiceNow incident ticket\n3. Perform quick AI RCA from the error snippet\n4. Update the ServiceNow ticket with RCA findings\n5. Correlate with recent GitHub repo commits";
-                name.value = "Java Container SRE Watchdog";
-                cat.value = "SRE & Incident Automation";
-                container.value = "java-app";
-                repo.value = "shakilmunavary/devops-vsp-sample-app";
-                jenkins.value = "build-java-app";
-                desc.value = "Monitors Java Docker container logs, diagnoses exceptions via AI RCA, and manages ServiceNow incident lifecycle.";
+                input.value = "Monitor container 'java-app' logs for 'ERROR' or exceptions. If found, create a ServiceNow incident, perform AI RCA on the stack trace, and update the ticket with the RCA findings.";
             } else if (type === 'cicd') {
-                prompt.value = "1. Monitor Jenkins CI/CD job 'build-java-app' for build failures\n2. Extract build console logs and diagnose compilation / test failure\n3. Create ServiceNow incident ticket with root cause\n4. Notify commit authors on GitHub";
-                name.value = "CI/CD Pipeline Failure Auto-Ticket";
-                cat.value = "CI/CD Orchestration";
-                container.value = "jenkins-agent";
-                repo.value = "shakilmunavary/devops-vsp-sample-app";
-                jenkins.value = "build-java-app";
-                desc.value = "Detects broken Jenkins builds, extracts failure stack traces, and creates remediating ServiceNow tickets.";
+                input.value = "Monitor Jenkins build job 'build-java-app' for build failures. If a build fails, extract the console log, diagnose the compilation or test error with AI RCA, and create a ServiceNow incident.";
             } else if (type === 'sec') {
-                prompt.value = "1. Correlate security alert logs from container 'java-app'\n2. Check GitHub Dependabot and secret scanning alerts\n3. Create High-Priority ServiceNow ticket for security patch";
-                name.value = "Security Vulnerability Correlator";
-                cat.value = "Security & Compliance";
-                container.value = "java-app";
-                repo.value = "shakilmunavary/devops-vsp-sample-app";
-                jenkins.value = "security-scan-job";
-                desc.value = "Correlates container CVE vulnerabilities with GitHub security scans and escalates tickets.";
+                input.value = "Check recent GitHub commits on repo 'shakilmunavary/devops-vsp-sample-app' and verify if any security scan issues or broken runs occurred, and notify via ServiceNow.";
+            }
+            sendBotArchitectMessage();
+        }
+
+        function handleBotArchitectKey(e) {
+            if (e.key === 'Enter') {
+                sendBotArchitectMessage();
             }
         }
 
-        async function synthesizeBotPlan() {
-            const prompt = document.getElementById('bot-prompt-input').value.trim();
-            if (!prompt) {
-                alert("Please provide instructions for the bot.");
-                return;
-            }
+        async function sendBotArchitectMessage() {
+            const input = document.getElementById('bot-architect-input');
+            const text = input.value.trim();
+            if (!text) return;
 
-            const btn = document.getElementById('btn-synthesize-bot');
-            btn.disabled = true;
-            btn.innerHTML = `⏳ AI Synthesizing Plan...`;
+            input.value = '';
+            const feed = document.getElementById('bot-architect-chat-feed');
+
+            // Append User Bubble
+            const userBubble = document.createElement('div');
+            userBubble.className = 'chat-bubble user';
+            userBubble.textContent = text;
+            feed.appendChild(userBubble);
+            feed.scrollTop = feed.scrollHeight;
+
+            // Append Thinking Bubble
+            const thinkingBubble = document.createElement('div');
+            thinkingBubble.className = 'chat-bubble bot';
+            thinkingBubble.id = 'architect-thinking-bubble';
+            thinkingBubble.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="pulse-dot" style="background: #a855f7;"></span>
+                    <span style="font-size: 12px; color: #c084fc;">Analyzing intent & validating MCP capabilities...</span>
+                </div>
+            `;
+            feed.appendChild(thinkingBubble);
+            feed.scrollTop = feed.scrollHeight;
+
+            const sendBtn = document.getElementById('bot-architect-send-btn');
+            sendBtn.disabled = true;
 
             try {
-                const res = await fetch('/api/bots/synthesize', {
+                const res = await fetch('/api/bots/chat_architect', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prompt })
+                    body: JSON.stringify({
+                        message: text,
+                        history: botArchitectHistory
+                    })
                 });
-                const plan = await res.json();
+                const data = await res.json();
 
-                if (plan.name) document.getElementById('bot-name-input').value = plan.name;
-                if (plan.category) document.getElementById('bot-category-input').value = plan.category;
-                if (plan.description) document.getElementById('bot-desc-input').value = plan.description;
-                if (plan.context_config) {
-                    if (plan.context_config.container_name) document.getElementById('bot-container-input').value = plan.context_config.container_name;
-                    if (plan.context_config.github_repo) document.getElementById('bot-repo-input').value = plan.context_config.github_repo;
-                    if (plan.context_config.jenkins_job) document.getElementById('bot-jenkins-input').value = plan.context_config.jenkins_job;
+                thinkingBubble.remove();
+
+                // Append Bot Response
+                const botBubble = document.createElement('div');
+                botBubble.className = 'chat-bubble bot';
+                botBubble.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 16px;">🤖</span>
+                        <strong style="color: #c084fc; font-size: 13px;">Mistral DevOps Architect</strong>
+                    </div>
+                    <div>${formatMarkdownToHtml(data.reply || 'Requirement analyzed.')}</div>
+                `;
+                feed.appendChild(botBubble);
+                feed.scrollTop = feed.scrollHeight;
+
+                botArchitectHistory.push({ role: 'user', content: text });
+                botArchitectHistory.push({ role: 'assistant', content: data.reply || '' });
+
+                // Render Validation Badges
+                renderValidationBox(data.validation);
+
+                // If Blueprint is ready, render it
+                if (data.blueprint) {
+                    currentSynthesizedBlueprint = data.blueprint;
+                    renderBlueprintCard(data.blueprint);
+                    const deployBtn = document.getElementById('btn-deploy-bot');
+                    deployBtn.style.opacity = '1';
+                    deployBtn.style.pointerEvents = 'auto';
                 }
-            } catch (e) {
-                alert("Synthesis failed: " + e);
+
+            } catch (err) {
+                if (thinkingBubble) thinkingBubble.remove();
+                const errBubble = document.createElement('div');
+                errBubble.className = 'chat-bubble bot';
+                errBubble.innerHTML = `<span style="color: #ef4444;">⚠️ Architect error: ${err}</span>`;
+                feed.appendChild(errBubble);
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = `🤖 Synthesize Bot with AI`;
+                sendBtn.disabled = false;
+                input.focus();
             }
         }
 
-        async function saveNewBot() {
-            const name = document.getElementById('bot-name-input').value.trim();
-            const instructions = document.getElementById('bot-prompt-input').value.trim();
-            const category = document.getElementById('bot-category-input').value.trim();
-            const desc = document.getElementById('bot-desc-input').value.trim();
-            const container = document.getElementById('bot-container-input').value.trim();
-            const repo = document.getElementById('bot-repo-input').value.trim();
-            const jenkins = document.getElementById('bot-jenkins-input').value.trim();
+        function renderValidationBox(validation) {
+            const box = document.getElementById('bot-validation-box');
+            if (!validation) return;
 
-            if (!name || !instructions) {
-                alert("Please fill in Bot Name and Instructions.");
+            let html = '';
+            if (validation.supported) {
+                html += `
+                    <div style="display: flex; align-items: center; gap: 6px; color: #4ade80; font-size: 12px; font-weight: 700;">
+                        <span>✅ All Required Capabilities Validated</span>
+                    </div>
+                `;
+            } else if (validation.missing_servers && validation.missing_servers.length > 0) {
+                html += `
+                    <div style="display: flex; align-items: center; gap: 6px; color: #f87171; font-size: 12px; font-weight: 700;">
+                        <span>⚠️ Missing MCP Server: ${validation.missing_servers.join(', ')}</span>
+                    </div>
+                `;
+            }
+
+            if (validation.tools_mapped && validation.tools_mapped.length > 0) {
+                html += `
+                    <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">
+                        ${validation.tools_mapped.map(t => `<span class="badge badge-ok" style="font-size: 10px;">🛠️ ${escapeHtml(t)}</span>`).join('')}
+                    </div>
+                `;
+            }
+
+            box.innerHTML = html || `<span style="font-size: 12px; color: var(--text-muted);">Validated against connected MCP tools.</span>`;
+        }
+
+        function renderBlueprintCard(bp) {
+            const card = document.getElementById('bot-blueprint-card');
+            const ctx = bp.context_config || {};
+            const steps = bp.workflow_steps || [];
+
+            let stepsHtml = '';
+            if (steps.length > 0) {
+                stepsHtml = steps.map((s, idx) => `
+                    <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 12px; background: rgba(15, 23, 42, 0.5); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color);">
+                        <span style="font-weight: 800; color: #38bdf8; font-size: 11px;">#${s.step || (idx+1)}</span>
+                        <div>
+                            <strong style="color: #f8fafc;">${escapeHtml(s.action || s.name || '')}</strong>
+                            <div style="color: var(--text-muted); font-size: 10px; font-family: var(--font-mono);">${escapeHtml(s.server || 'system')}.${escapeHtml(s.tool || 'custom')}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            let ctxTagsHtml = '';
+            for (let [k, v] of Object.entries(ctx)) {
+                if (v) {
+                    ctxTagsHtml += `<span class="bot-tag"><strong>${escapeHtml(k)}:</strong> ${escapeHtml(String(v))}</span> `;
+                }
+            }
+
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 800; color: #f8fafc;">🤖 ${escapeHtml(bp.name || 'Autonomous Bot')}</h3>
+                        <span class="bot-category" style="margin-top: 4px; display: inline-block;">${escapeHtml(bp.category || 'DevOps Automation')}</span>
+                    </div>
+                    <span class="badge badge-ok">READY TO DEPLOY</span>
+                </div>
+
+                <p style="font-size: 12px; color: var(--text-muted); line-height: 1.4;">${escapeHtml(bp.description || bp.instructions)}</p>
+
+                ${ctxTagsHtml ? `<div><div style="font-size: 10px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">EXTRACTED CONTEXT:</div><div class="bot-context-tags">${ctxTagsHtml}</div></div>` : ''}
+
+                <div style="margin-top: 4px;">
+                    <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">EXECUTION WORKFLOW:</div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        ${stepsHtml || '<span style="font-size: 11px; color: var(--text-muted);">Dynamic execution sequence.</span>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function deploySynthesizedBot() {
+            if (!currentSynthesizedBlueprint) {
+                alert("No blueprint available to deploy.");
                 return;
             }
 
-            const botData = {
-                id: `bot_${name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now().toString().slice(-4)}`,
-                name: name,
-                category: category || 'DevOps Automation',
-                description: desc || instructions,
-                instructions: instructions,
-                status: 'active',
-                trigger_type: 'interval',
-                interval_seconds: 120,
-                context_config: {
-                    container_name: container || 'java-app',
-                    github_repo: repo || '',
-                    jenkins_job: jenkins || '',
-                    snow_urgency: '2',
-                    snow_impact: '2'
-                },
-                tools_required: ['servicenow', 'github', 'jenkins']
-            };
-
-            const btn = document.getElementById('btn-save-bot');
+            const btn = document.getElementById('btn-deploy-bot');
             btn.disabled = true;
+            btn.innerHTML = `⏳ Deploying Bot...`;
 
             try {
                 const res = await fetch('/api/bots', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(botData)
+                    body: JSON.stringify(currentSynthesizedBlueprint)
                 });
                 const result = await res.json();
+                
                 closeBotCreatorModal();
                 await loadBots();
+                alert(`🎉 Autonomous Bot '${currentSynthesizedBlueprint.name}' deployed successfully!`);
+
             } catch (e) {
-                alert("Failed to save bot: " + e);
+                alert("Failed to deploy bot: " + e);
             } finally {
                 btn.disabled = false;
+                btn.innerHTML = `🚀 Deploy Autonomous Bot`;
             }
         }
 
