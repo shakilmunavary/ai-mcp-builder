@@ -193,9 +193,9 @@ def {fn_name}(path_or_params: Optional[Dict[str, Any]] = None, **kwargs) -> str:
         
     target_endpoint = "{endpoint}"
     for k, v in list(args.items()):
-        placeholder = f"{{{{{k}}}}}"
-        if placeholder in target_endpoint:
-            target_endpoint = target_endpoint.replace(placeholder, str(v))
+        p_tag = "{" + str(k) + "}"
+        if p_tag in target_endpoint:
+            target_endpoint = target_endpoint.replace(p_tag, str(v))
             args.pop(k, None)
 
     url = f"{{base}}/{{target_endpoint.lstrip('/')}}"
