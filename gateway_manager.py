@@ -129,24 +129,37 @@ def execute_tool_call(target_name: str, tool_name: str, arguments: Dict[str, Any
             "isError": True
         }
 
+    # 1. Exact match
     func = getattr(module, tool_name, None)
+    
+    # 2. Strict semantic alias matching (e.g. list_repositories <-> list_repos)
     if not func or not callable(func):
-        # Universal tool alias & normalization fallback (ignoring typing classes)
+        alias_map = {
+            "list_repositories": "list_repos",
+            "list_repos": "list_repositories",
+            "list_jobs": "list_all_jobs",
+            "list_incidents": "get_incidents"
+        }
+        mapped_name = alias_map.get(tool_name)
+        if mapped_name and hasattr(module, mapped_name):
+            func = getattr(module, mapped_name, None)
+            if callable(func):
+                tool_name = mapped_name
+
+    # 3. Normalized stem matching (e.g. repo/repos/repositories)
+    if not func or not callable(func):
+        tool_stem = tool_name.replace("repositories", "repo").replace("repos", "repo").replace("_", "").lower()
         for attr in dir(module):
             if attr.startswith("_") or attr[0].isupper() or attr in ["Any", "Dict", "List", "Optional", "Union", "Tuple", "Set", "FastMCP"]:
                 continue
             cand = getattr(module, attr, None)
             if not callable(cand) or not (inspect.isfunction(cand) or hasattr(cand, "__code__")):
                 continue
-            clean_attr = attr.replace("_", "").lower()
-            clean_tool = tool_name.replace("_", "").lower()
-            if clean_attr == clean_tool or clean_attr.startswith(clean_tool) or clean_tool.startswith(clean_attr):
+            attr_stem = attr.replace("repositories", "repo").replace("repos", "repo").replace("_", "").lower()
+            if attr_stem == tool_stem:
                 func = cand
+                tool_name = attr
                 break
-            elif any(w in clean_attr and w in clean_tool for w in ["repo", "incident", "job", "pipeline", "user", "issue", "branch"]):
-                if any(verb in clean_attr and verb in clean_tool for verb in ["list", "get", "create", "delete", "update", "trigger"]):
-                    func = cand
-                    break
 
     if not func or not callable(func):
         return {
