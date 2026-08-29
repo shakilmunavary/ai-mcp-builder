@@ -343,11 +343,32 @@ def evaluate_server_health(platform_id: str, server_script: str, tools: list) ->
                     k, v = line.split("=", 1)
                     creds[k.strip().lower()] = v.strip()
 
-    # Extract base URL and Auth
-    base_url = creds.get("instance_url") or creds.get("base_url") or creds.get("url") or creds.get("jenkins_url") or "https://api.service.com"
-    token = creds.get("token") or creds.get("personal_access_token") or creds.get("api_token") or creds.get("password") or creds.get("auth_header") or ""
-    username = creds.get("username") or creds.get("user") or ""
-    org = creds.get("organization") or creds.get("org") or creds.get("owner") or ""
+    # Extract base URL and Auth dynamically from any field names
+    base_url = ""
+    token = ""
+    username = ""
+    org = ""
+
+    for k, v in creds.items():
+        k_lower = k.lower()
+        if any(w in k_lower for w in ["url", "host", "endpoint"]) and v:
+            base_url = v
+        elif any(w in k_lower for w in ["token", "pat", "key", "password", "secret", "auth"]) and v:
+            token = v
+        elif any(w in k_lower for w in ["username", "user_id", "client_id"]) and v:
+            username = v
+        elif any(w in k_lower for w in ["owner", "org", "organization", "workspace", "project", "account"]) and v:
+            org = v
+
+    if not base_url:
+        if "github" in platform_id.lower():
+            base_url = "https://api.github.com"
+        elif "gitlab" in platform_id.lower():
+            base_url = "https://gitlab.com/api/v4"
+        elif "slack" in platform_id.lower():
+            base_url = "https://slack.com/api"
+        else:
+            base_url = "https://api.service.com"
 
     # Choose best probe endpoint from tools or fallback to root
     endpoint = ""
@@ -821,7 +842,7 @@ def conversational_ai_architect():
 
 
 def main():
-    host = os.environ.get("FLASK_HOST", "127.0.0.1")
+    host = os.environ.get("FLASK_HOST", "0.0.0.0")
     port = int(os.environ.get("FLASK_PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "False").lower() in ["true", "1"]
 
