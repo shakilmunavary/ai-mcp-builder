@@ -73,9 +73,14 @@ def write_server_env_file(platform_id: str, config_values: dict) -> str:
 
 
 def generate_dynamic_mcp_server_script(server_id: str, server_name: str, base_url: str, auth_header: str, tools: list = None) -> str:
+    """
+    Universal, 100% Platform-Agnostic FastMCP Server Generator:
+    Generates dynamic FastMCP servers for ANY service (Datadog, Splunk, ServiceNow, GitHub, GitLab, Jira, etc.)
+    using universal REST/JSON-RPC parameter binding, path variable substitution, and multi-auth resolution.
+    """
     tools = tools or [
-        {"name": "query_endpoint", "description": f"Send dynamic GET request to {server_name}", "sample_args": {"path": "/status"}},
-        {"name": "post_endpoint", "description": f"Send dynamic POST payload to {server_name}", "sample_args": {"path": "/action"}}
+        {"name": "query_endpoint", "description": f"Send dynamic GET request to {server_name}", "endpoint": "/status", "method": "GET"},
+        {"name": "post_endpoint", "description": f"Send dynamic POST payload to {server_name}", "endpoint": "/action", "method": "POST"}
     ]
 
     code = f'''"""
@@ -86,13 +91,14 @@ Generated automatically by AI MCP Server Kit & Mistral AI Architect.
 import os
 import sys
 import httpx
+import base64
 import keyring
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 
 ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
 if os.path.exists(ENV_PATH):
-    load_dotenv(ENV_PATH)
+    load_dotenv(ENV_PATH, override=True)
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -106,7 +112,6 @@ mcp = FastMCP("{server_id}-server")
 SERVICE_NAME = "mcp_{server_id}"
 
 def get_credentials() -> Dict[str, str]:
-    # Dynamic scan of environment variables
     base_url = "{base_url}"
     auth_val = "{auth_header}"
     username = ""
@@ -116,12 +121,12 @@ def get_credentials() -> Dict[str, str]:
             base_url = v
         elif any(w in k_upper for w in ["TOKEN", "API_KEY", "SECRET", "PASSWORD", "AUTH"]) and v:
             auth_val = v
-        elif any(w in k_upper for w in ["USERNAME", "USER_ID", "CLIENT_ID", "ACCESS_KEY"]) and v:
+        elif any(w in k_upper for w in ["USERNAME", "USER_ID", "CLIENT_ID", "ACCESS_KEY", "USER"]) and v and k_upper not in ["USER", "LOGNAME"]:
             username = v
 
-    base_url = base_url or os.environ.get("BASE_URL") or keyring.get_password(SERVICE_NAME, "base_url") or "{base_url}"
-    auth_val = auth_val or os.environ.get("AUTH_HEADER") or keyring.get_password(SERVICE_NAME, "auth_header") or "{auth_header}"
-    username = username or os.environ.get("USERNAME") or keyring.get_password(SERVICE_NAME, "username") or ""
+    base_url = os.environ.get("INSTANCE_URL") or os.environ.get("BASE_URL") or base_url
+    auth_val = os.environ.get("PASSWORD") or os.environ.get("TOKEN") or os.environ.get("API_KEY") or os.environ.get("AUTH_HEADER") or auth_val
+    username = os.environ.get("USERNAME") or username
     return {{
         "base_url": base_url.rstrip("/"),
         "auth_val": auth_val,
@@ -129,328 +134,99 @@ def get_credentials() -> Dict[str, str]:
     }}
 
 def get_headers_and_auth(creds: Dict[str, str]):
-    headers = {{"Accept": "application/json", "User-Agent": "MCP-Gateway-Dynamic/1.0"}}
+    headers = {{
+        "Accept": "application/json, application/vnd.github.v3+json, text/plain, */*",
+        "Content-Type": "application/json",
+        "User-Agent": "MCP-Gateway-Universal/2.0"
+    }}
     auth = None
-    if creds.get("username") and creds.get("auth_val"):
-        auth = (creds["username"], creds["auth_val"])
-    elif creds.get("auth_val"):
-        v = creds["auth_val"]
-        headers["Authorization"] = v if ("Bearer" in v or "Basic" in v or "ApiKey" in v) else f"Bearer {{v}}"
+    u = creds.get("username")
+    p = creds.get("auth_val")
+
+    if u and p:
+        auth = (u, p)
+        try:
+            b64_val = base64.b64encode(f"{{u}}:{{p}}".encode("utf-8")).decode("utf-8")
+            headers["Authorization"] = f"Basic {{b64_val}}"
+        except Exception:
+            pass
+    elif p:
+        if any(prefix in p for prefix in ["Bearer ", "Basic ", "token ", "ApiKey "]):
+            headers["Authorization"] = p
+        elif p.startswith("ghp_") or p.startswith("github_pat_") or len(p) == 40 or len(p) > 30:
+            headers["Authorization"] = f"Bearer {{p}}"
+        else:
+            headers["Authorization"] = f"Bearer {{p}}"
+            
     return headers, auth
 '''
-
-    is_jenkins = "jenkins" in server_id.lower() or "jenkins" in server_name.lower()
-    is_snow = "servicenow" in server_id.lower() or "snow" in server_id.lower()
 
     for t in tools:
         fn_name = re.sub(r'[^a-zA-Z0-9_]', '_', t.get("name", "custom_call"))
         desc = t.get("description", f"Execute {fn_name}").replace('"', '\\"')
-        method = "POST" if any(k in fn_name for k in ["create", "trigger", "post", "update", "delete", "add", "merge", "cancel", "lock", "start", "stop", "abort", "apply", "patch", "upload", "deploy", "submit", "close", "reopen", "put"]) else "GET"
+        method = t.get("method", "POST" if any(k in fn_name for k in ["create", "trigger", "post", "update", "delete", "add", "merge", "cancel", "lock", "start", "stop", "abort", "apply", "patch", "upload", "deploy", "submit", "close", "reopen", "put"]) else "GET").upper()
+        
+        endpoint = t.get("endpoint") or t.get("path") or ""
+        if not endpoint:
+            if "incident" in fn_name or "change" in fn_name or "problem" in fn_name or "cmdb" in fn_name:
+                table_target = "incident" if "incident" in fn_name else ("change_request" if "change" in fn_name else ("problem" if "problem" in fn_name else "cmdb_ci"))
+                endpoint = f"/api/now/table/{table_target}"
+            elif "repo" in fn_name and ("list" in fn_name or "get" in fn_name):
+                endpoint = "/user/repos"
+            elif "job" in fn_name or "build" in fn_name or "jenkins" in fn_name:
+                endpoint = "/api/json"
+            else:
+                endpoint = f"/{fn_name}"
 
-        if is_jenkins:
-            if any(k in fn_name for k in ["version", "system_info", "instance_info"]):
-                code += f'''
-
-@mcp.tool()
-def {fn_name}(path_or_params: Optional[Dict[str, Any]] = None) -> str:
-    """{desc}"""
-    creds = get_credentials()
-    url = f"{{creds['base_url']}}/api/json"
-    headers, auth = get_headers_and_auth(creds)
-    try:
-        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0, follow_redirects=True) as client:
-            res = client.get(url)
-            if res.status_code == 200:
-                data = res.json()
-                ver = res.headers.get("X-Jenkins", "Ready")
-                return f"**Jenkins Status & Version:**\\n- **Version:** `{{ver}}`\\n- **URL:** {{creds['base_url']}}\\n- **Active Jobs:** {{len(data.get('jobs', []))}}\\n- **Mode:** {{data.get('mode', 'NORMAL')}}"
-            return f"Jenkins API Error ({{res.status_code}}): {{res.text[:400]}}"
-    except Exception as e:
-        return f"Error executing {fn_name}: {{e}}"
-'''
-            elif any(k in fn_name for k in ["list_jobs", "get_jobs", "jobs_list", "search_jobs"]):
-                code += f'''
+        code += f'''
 
 @mcp.tool()
-def {fn_name}(folder: Optional[str] = None, recursive: Optional[bool] = False, path_or_params: Optional[Dict[str, Any]] = None) -> str:
+def {fn_name}(path_or_params: Optional[Dict[str, Any]] = None, **kwargs) -> str:
     """{desc}"""
     creds = get_credentials()
-    if folder:
-        parts = [f"job/{{p}}" for p in folder.strip("/").split("/")]
-        url = f"{{creds['base_url']}}/{{\'/'.join(parts)}}/api/json?tree=jobs[name,color,url]"
-    else:
-        url = f"{{creds['base_url']}}/api/json?tree=jobs[name,color,url]"
+    base = creds["base_url"]
     headers, auth = get_headers_and_auth(creds)
-    try:
-        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0, follow_redirects=True) as client:
-            res = client.get(url)
-            if res.status_code == 200:
-                jobs = res.json().get("jobs", [])
-                lines = [f"Jenkins Jobs ({{len(jobs)}} total):"]
-                for j in jobs:
-                    lines.append(f"- **{{j.get('name')}}** (`{{j.get('color', 'unknown')}}`) - {{j.get('url')}}")
-                return "\\n".join(lines)
-            return f"Jenkins API Error ({{res.status_code}}): {{res.text[:400]}}"
-    except Exception as e:
-        return f"Error executing {fn_name}: {{e}}"
-'''
-            elif any(k in fn_name for k in ["job_details", "get_job", "job_config"]):
-                code += f'''
+    
+    args = dict(kwargs)
+    if isinstance(path_or_params, dict):
+        args.update(path_or_params)
+        
+    target_endpoint = "{endpoint}"
+    for k, v in list(args.items()):
+        placeholder = f"{{{{{k}}}}}"
+        if placeholder in target_endpoint:
+            target_endpoint = target_endpoint.replace(placeholder, str(v))
+            args.pop(k, None)
 
-@mcp.tool()
-def {fn_name}(job_name: Optional[str] = None, folder: Optional[str] = None, path_or_params: Optional[Dict[str, Any]] = None) -> str:
-    """{desc}"""
-    creds = get_credentials()
-    j_name = job_name or (path_or_params or {{}}).get("job_name", "devops-vsp-pipeline")
-    if folder:
-        parts = [f"job/{{p}}" for p in folder.strip("/").split("/")] + [f"job/{{j_name}}"]
-    else:
-        parts = [f"job/{{p}}" for p in j_name.strip("/").split("/")]
-    url = f"{{creds['base_url']}}/{{\'/'.join(parts)}}/api/json"
-    headers, auth = get_headers_and_auth(creds)
-    try:
-        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0, follow_redirects=True) as client:
-            res = client.get(url)
-            if res.status_code == 200:
-                d = res.json()
-                return f"**Job Details: `{{j_name}}`**\\n- **URL:** {{d.get('url')}}\\n- **Buildable:** {{d.get('buildable')}}\\n- **Color:** `{{d.get('color')}}`\\n- **Next Build #:** {{d.get('nextBuildNumber')}}"
-            return f"Jenkins API ({{res.status_code}}): {{res.text[:400]}}"
-    except Exception as e:
-        return f"Error executing {fn_name}: {{e}}"
-'''
-            elif any(k in fn_name for k in ["console", "log", "output"]):
-                code += f'''
-
-@mcp.tool()
-def {fn_name}(job_name: Optional[str] = None, build_number: Optional[int] = 1, folder: Optional[str] = None, path_or_params: Optional[Dict[str, Any]] = None) -> str:
-    """{desc}"""
-    creds = get_credentials()
-    j_name = job_name or (path_or_params or {{}}).get("job_name", "devops-vsp-pipeline")
-    b_num = build_number or (path_or_params or {{}}).get("build_number", 1)
-    if folder:
-        parts = [f"job/{{p}}" for p in folder.strip("/").split("/")] + [f"job/{{j_name}}", str(b_num), "consoleText"]
-    else:
-        parts = [f"job/{{p}}" for p in j_name.strip("/").split("/")] + [str(b_num), "consoleText"]
-    url = f"{{creds['base_url']}}/{{\'/'.join(parts)}}"
-    headers, auth = get_headers_and_auth(creds)
+    url = f"{{base}}/{{target_endpoint.lstrip('/')}}"
+    
     try:
         with httpx.Client(verify=False, auth=auth, headers=headers, timeout=20.0, follow_redirects=True) as client:
-            res = client.get(url)
-            if res.status_code == 200:
-                txt = res.text
-                if len(txt) > 4000:
-                    txt = "... [truncated] ...\\n" + txt[-3800:]
-                return f"**Console Log for `{{j_name}} #{{b_num}}`:**\\n```\\n{{txt}}\\n```"
-            return f"Jenkins API ({{res.status_code}}): {{res.text[:400]}}"
-    except Exception as e:
-        return f"Error executing {fn_name}: {{e}}"
-'''
-            else:
-                code += f'''
-
-@mcp.tool()
-def {fn_name}(path_or_params: Optional[Dict[str, Any]] = None) -> str:
-    """{desc}"""
-    creds = get_credentials()
-    url = f"{{creds['base_url']}}/api/json"
-    headers, auth = get_headers_and_auth(creds)
-    try:
-        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0, follow_redirects=True) as client:
-            res = client.get(url, params=path_or_params or {{}})
-            if res.status_code in [200, 201]:
-                return f"**{fn_name} ({{res.status_code}}):**\\n```json\\n{{res.text[:4000]}}\\n```"
-            return f"Jenkins API ({{res.status_code}}): {{res.text[:400]}}"
-    except Exception as e:
-        return f"Error executing {fn_name}: {{e}}"
-'''
-        elif is_snow:
-            table_name = "incident"
-            if "change" in fn_name:
-                table_name = "change_request"
-            elif "problem" in fn_name:
-                table_name = "problem"
-            elif "ci" in fn_name or "cmdb" in fn_name:
-                table_name = "cmdb_ci"
-            elif "user_group" in fn_name or "group" in fn_name:
-                table_name = "sys_user_group"
-            elif "user" in fn_name:
-                table_name = "sys_user"
-            elif "role" in fn_name:
-                table_name = "sys_user_role"
-            elif "knowledge" in fn_name or "kb" in fn_name:
-                table_name = "kb_knowledge"
-            elif "catalog" in fn_name or "request" in fn_name:
-                table_name = "sc_request"
-
-            code += f'''
-
-@mcp.tool()
-def {fn_name}(limit: Optional[int] = 20, state: Optional[str] = None, query: Optional[str] = None, incident_number: Optional[str] = None, change_number: Optional[str] = None, problem_number: Optional[str] = None, short_description: Optional[str] = None, work_notes: Optional[str] = None, close_code: Optional[str] = None, close_notes: Optional[str] = None, path_or_params: Optional[Dict[str, Any]] = None) -> str:
-    """{desc}"""
-    creds = get_credentials()
-    base = creds["base_url"]
-    url = f"{{base}}/api/now/table/{table_name}"
-    headers, auth = get_headers_and_auth(creds)
-    
-    # Merge direct arguments and dict params
-    args = path_or_params or {{}}
-    if limit: args["sysparm_limit"] = limit
-    if state: args["state"] = state
-    if query: args["sysparm_query"] = query
-    if incident_number: args["number"] = incident_number
-    if change_number: args["number"] = change_number
-    if problem_number: args["number"] = problem_number
-    if short_description: args["short_description"] = short_description
-    if work_notes: args["work_notes"] = work_notes
-    if close_code: args["close_code"] = close_code
-    if close_notes: args["close_notes"] = close_notes
-
-    try:
-        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0) as client:
             if "{method}" == "GET":
-                # Build query string
-                q_parts = []
-                for k, v in args.items():
-                    if k not in ["sysparm_limit", "sysparm_query"] and v is not None:
-                        q_parts.append(f"{{k}}={{v}}")
-                if q_parts and "sysparm_query" not in args:
-                    args["sysparm_query"] = "^".join(q_parts)
+                if "api/now/table" in url and "sysparm_limit" not in args and "limit" in args:
+                    args["sysparm_limit"] = args.pop("limit")
                 res = client.get(url, params=args)
+            elif "{method}" == "DELETE":
+                res = client.delete(url, params=args)
+            elif "{method}" == "PUT":
+                res = client.put(url, json=args)
+            elif "{method}" == "PATCH":
+                res = client.patch(url, json=args)
             else:
                 res = client.post(url, json=args)
-            
-            if res.status_code in [200, 201, 202]:
-                return f"**ServiceNow {fn_name} ({{res.status_code}}):**\\n```json\\n{{res.text[:4000]}}\\n```"
-            else:
-                return f"ServiceNow API Response ({{res.status_code}}): {{res.text[:500]}}"
-    except Exception as e:
-        return f"Error executing {fn_name}: {{e}}"
-'''
-        elif "github" in server_id.lower() or "github" in server_name.lower():
-            if fn_name == "list_repos":
-                code += f'''
 
-@mcp.tool()
-def {fn_name}(limit: Optional[int] = 30, org: Optional[str] = None, path_or_params: Optional[Dict[str, Any]] = None) -> str:
-    """{desc}"""
-    creds = get_credentials()
-    base = creds["base_url"]
-    owner = org or os.environ.get("ORG") or creds.get("username")
-    
-    headers, auth = get_headers_and_auth(creds)
-    headers["Accept"] = "application/vnd.github.v3+json"
-    
-    params = {{"per_page": limit, "sort": "updated"}}
-    url = f"{{base}}/user/repos" if creds.get("auth_val") else (f"{{base}}/users/{{owner}}/repos" if owner else f"{{base}}/user/repos")
-    
-    try:
-        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0) as client:
-            res = client.get(url, params=params)
-            if res.status_code == 404 and owner:
-                res = client.get(f"{{base}}/orgs/{{owner}}/repos", params=params)
-            if res.status_code in [200, 201]:
-                return f"**GitHub {fn_name} ({{res.status_code}}):**\\n```json\\n{{res.text[:4000]}}\\n```"
-            return f"GitHub API Error ({{res.status_code}}): {{res.text[:500]}}"
-    except Exception as e:
-        return f"Error executing {fn_name}: {{e}}"
-'''
-            elif fn_name in ["list_issues", "get_issues"]:
-                code += f'''
-
-@mcp.tool()
-def {fn_name}(repo: Optional[str] = None, state: Optional[str] = "open", limit: Optional[int] = 30, path_or_params: Optional[Dict[str, Any]] = None) -> str:
-    """{desc}"""
-    creds = get_credentials()
-    base = creds["base_url"]
-    owner = os.environ.get("ORG") or creds.get("username", "shakilmunavary")
-    target_repo = repo or (path_or_params or {{}}).get("repo", "")
-    if "/" not in target_repo and owner:
-        target_repo = f"{{owner}}/{{target_repo}}"
-    url = f"{{base}}/repos/{{target_repo}}/issues"
-    headers, auth = get_headers_and_auth(creds)
-    try:
-        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0) as client:
-            res = client.get(url, params={{"state": state, "per_page": limit}})
-            if res.status_code in [200, 201]:
-                return f"**GitHub {fn_name} ({{res.status_code}}):**\\n```json\\n{{res.text[:4000]}}\\n```"
-            return f"GitHub API Error ({{res.status_code}}): {{res.text[:500]}}"
-    except Exception as e:
-        return f"Error executing {fn_name}: {{e}}"
-'''
-            elif fn_name in ["list_pull_requests", "get_pull_requests"]:
-                code += f'''
-
-@mcp.tool()
-def {fn_name}(repo: Optional[str] = None, state: Optional[str] = "open", limit: Optional[int] = 30, path_or_params: Optional[Dict[str, Any]] = None) -> str:
-    """{desc}"""
-    creds = get_credentials()
-    base = creds["base_url"]
-    owner = os.environ.get("ORG") or creds.get("username", "shakilmunavary")
-    target_repo = repo or (path_or_params or {{}}).get("repo", "")
-    if "/" not in target_repo and owner:
-        target_repo = f"{{owner}}/{{target_repo}}"
-    url = f"{{base}}/repos/{{target_repo}}/pulls"
-    headers, auth = get_headers_and_auth(creds)
-    try:
-        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0) as client:
-            res = client.get(url, params={{"state": state, "per_page": limit}})
-            if res.status_code in [200, 201]:
-                return f"**GitHub {fn_name} ({{res.status_code}}):**\\n```json\\n{{res.text[:4000]}}\\n```"
-            return f"GitHub API Error ({{res.status_code}}): {{res.text[:500]}}"
-    except Exception as e:
-        return f"Error executing {fn_name}: {{e}}"
-'''
+            if res.status_code in [200, 201, 202, 204]:
+                out = res.text
+                if len(out) > 4000:
+                    out = out[:3900] + "\\n... [truncated for token efficiency] ..."
+                return f"**{fn_name} ({{res.status_code}}):**\\n```json\\n{{out}}\\n```"
             else:
-                code += f'''
-
-@mcp.tool()
-def {fn_name}(repo: Optional[str] = None, path_or_params: Optional[Dict[str, Any]] = None) -> str:
-    """{desc}"""
-    creds = get_credentials()
-    base = creds["base_url"]
-    owner = os.environ.get("ORG") or creds.get("username", "shakilmunavary")
-    target_repo = repo or (path_or_params or {{}}).get("repo", "")
-    if target_repo and "/" not in target_repo and owner:
-        target_repo = f"{{owner}}/{{target_repo}}"
-    url = f"{{base}}/repos/{{target_repo}}" if target_repo else f"{{base}}/user/repos"
-    headers, auth = get_headers_and_auth(creds)
-    try:
-        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0) as client:
-            if "{method}" == "GET":
-                res = client.get(url, params=path_or_params or {{}})
-            else:
-                res = client.post(url, json=path_or_params or {{}})
-            if res.status_code in [200, 201, 202]:
-                return f"**GitHub {fn_name} ({{res.status_code}}):**\\n```json\\n{{res.text[:4000]}}\\n```"
-            return f"GitHub API Error ({{res.status_code}}): {{res.text[:500]}}"
-    except Exception as e:
-        return f"Error executing {fn_name}: {{e}}"
-'''
-        else:
-            code += f'''
-
-@mcp.tool()
-def {fn_name}(path_or_params: Optional[Dict[str, Any]] = None) -> str:
-    """{desc}"""
-    creds = get_credentials()
-    url = f"{{creds['base_url']}}/{fn_name}"
-    headers, auth = get_headers_and_auth(creds)
-    try:
-        with httpx.Client(verify=False, auth=auth, headers=headers, timeout=15.0) as client:
-            if "{method}" == "GET":
-                res = client.get(url, params=path_or_params or {{}})
-            else:
-                res = client.post(url, json=path_or_params or {{}})
-            if res.status_code in [200, 201, 202]:
-                return f"**{fn_name} ({{res.status_code}}):**\\n```json\\n{{res.text[:4000]}}\\n```"
-            else:
-                return f"API Response ({{res.status_code}}): {{res.text[:400]}}"
+                return f"API Response ({{res.status_code}}): {{res.text[:500]}}"
     except Exception as e:
         return f"Error executing {fn_name}: {{e}}"
 '''
 
     code += '''
-
 if __name__ == "__main__":
     mcp.run(transport="stdio")
 '''
@@ -525,6 +301,139 @@ def list_servers():
 def gateway_status():
     status = gateway_mgr.get_status()
     return jsonify(status)
+
+
+def evaluate_server_health(platform_id: str, server_script: str, tools: list) -> dict:
+    """
+    Self-Evaluation Pre-Flight Test:
+    Spawns a sandbox probe test against the newly generated server before publishing.
+    Tests live connectivity using a lightweight query probe (e.g. list_repos, list_incidents, list_jobs).
+    """
+    if not tools:
+        return {"passed": True, "probe": "none", "preview": "No tools to evaluate."}
+
+    # Pick the best probe tool (prefer query/list/status tools)
+    probe_tool = None
+    for t in tools:
+        t_name = t.get("name", "")
+        if any(k in t_name for k in ["list", "health", "status", "info", "version", "get", "query"]):
+            probe_tool = t_name
+            break
+    if not probe_tool:
+        probe_tool = tools[0].get("name", "status")
+
+    server_dir = os.path.dirname(server_script)
+    eval_code = f"""
+import sys
+import os
+sys.path.insert(0, r'{server_dir}')
+import server
+
+try:
+    fn = getattr(server, '{probe_tool}', None)
+    if not fn:
+        for attr_name in dir(server):
+            attr = getattr(server, attr_name)
+            if hasattr(attr, '__name__') and attr.__name__ == '{probe_tool}':
+                fn = attr
+                break
+    if fn:
+        res = fn()
+        print("RESULT_START")
+        print(res)
+        print("RESULT_END")
+    else:
+        print("RESULT_START")
+        print("Tool not found")
+        print("RESULT_END")
+except Exception as e:
+    print(f"EXCEPTION: {{e}}")
+"""
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", eval_code],
+            cwd=server_dir,
+            capture_output=True,
+            text=True,
+            timeout=12.0
+        )
+        stdout = proc.stdout
+        stderr = proc.stderr
+
+        if "RESULT_START" in stdout and "RESULT_END" in stdout:
+            output = stdout.split("RESULT_START")[1].split("RESULT_END")[0].strip()
+            
+            # Check for authentication or not found errors
+            if "401" in output or "not authenticated" in output.lower() or "unauthorized" in output.lower():
+                return {
+                    "passed": False,
+                    "probe": probe_tool,
+                    "reason": "Authentication Failed (401): Credentials rejected by upstream service.",
+                    "preview": output[:400]
+                }
+            elif "403" in output or "forbidden" in output.lower():
+                return {
+                    "passed": False,
+                    "probe": probe_tool,
+                    "reason": "Permission Denied (403): Token or user lacks required permissions.",
+                    "preview": output[:400]
+                }
+            elif "404" in output or "not found" in output.lower():
+                return {
+                    "passed": False,
+                    "probe": probe_tool,
+                    "reason": "Endpoint Not Found (404): Check instance URL or API route.",
+                    "preview": output[:400]
+                }
+            elif "Error executing" in output:
+                return {
+                    "passed": False,
+                    "probe": probe_tool,
+                    "reason": f"Execution error in {probe_tool}: {output[:250]}",
+                    "preview": output[:400]
+                }
+            else:
+                return {
+                    "passed": True,
+                    "probe": probe_tool,
+                    "preview": output[:300]
+                }
+        else:
+            err = stderr or stdout or "Process terminated without output."
+            return {
+                "passed": False,
+                "probe": probe_tool,
+                "reason": f"Runtime error: {err[:200]}",
+                "preview": err[:300]
+            }
+    except subprocess.TimeoutExpired:
+        return {
+            "passed": False,
+            "probe": probe_tool,
+            "reason": f"Timeout connecting to upstream service during {probe_tool} evaluation.",
+            "preview": "Timeout after 12 seconds."
+        }
+    except Exception as ex:
+        return {
+            "passed": False,
+            "probe": probe_tool,
+            "reason": f"Self-evaluation execution exception: {ex}",
+            "preview": str(ex)
+        }
+
+
+@app.route("/api/servers/<platform_id>/evaluate", methods=["POST"])
+def evaluate_existing_server(platform_id: str):
+    registry = load_server_registry()
+    servers = registry.get("servers", {})
+    if platform_id not in servers:
+        return jsonify({"success": False, "error": f"Server {platform_id} not found"}), 404
+    
+    s = servers[platform_id]
+    server_script = os.path.join(BASE_DIR, "mcp_servers", platform_id, "server.py")
+    tools = s.get("tools", [])
+    eval_result = evaluate_server_health(platform_id, server_script, tools)
+    return jsonify({"success": True, "evaluation": eval_result})
 
 
 @app.route("/api/build", methods=["POST"])
@@ -610,7 +519,21 @@ def build_server():
             "tools": filtered_tools
         }
 
-    # Register target in gateway_manager
+    # Step: Run Self-Evaluation Pre-Flight Smoke Test before publishing
+    eval_result = evaluate_server_health(platform_id, server_script, filtered_tools)
+    server_entry["last_evaluation"] = eval_result
+
+    if not eval_result.get("passed", False):
+        # Do not activate broken server; report evaluation failure
+        return jsonify({
+            "success": False,
+            "evaluation_failed": True,
+            "error": eval_result.get("reason", "Pre-flight self-evaluation failed."),
+            "evaluation": eval_result,
+            "server": server_entry
+        }), 400
+
+    # Passed Self-Evaluation: Register in gateway
     python_exec = sys.executable
     gateway_mgr.add_target(
         name=platform_id,
@@ -629,6 +552,7 @@ def build_server():
     return jsonify({
         "success": True,
         "server": server_entry,
+        "evaluation": eval_result,
         "gateway": gateway_res
     })
 

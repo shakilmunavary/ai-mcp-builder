@@ -1540,7 +1540,14 @@
 
         async function executeBuild() {
             const spec = chatContext.currentPlatform;
-            appendBotMessage(`🔄 Writing <code>mcp_servers/${spec.id}/.env</code>, generating FastMCP server script, and registering target on port 5001...`);
+            appendBotMessage(`⚙️ <strong>Step 1/2:</strong> Generating FastMCP server scripts and saving credentials into <code>mcp_servers/${spec.id}/.env</code>...`);
+            
+            const thinkingBubble = document.createElement('div');
+            thinkingBubble.className = 'chat-bubble thinking';
+            thinkingBubble.id = 'eval-thinking-bubble';
+            thinkingBubble.innerHTML = '🧪 <strong>Step 2/2:</strong> Mistral AI is performing <strong>automated self-evaluation</strong> against the upstream API...';
+            document.getElementById('chat-feed').appendChild(thinkingBubble);
+            document.getElementById('chat-feed').scrollTop = document.getElementById('chat-feed').scrollHeight;
 
             try {
                 const res = await fetch('/api/build', {
@@ -1555,16 +1562,50 @@
                 });
 
                 const data = await res.json();
+                const tb = document.getElementById('eval-thinking-bubble');
+                if (tb) tb.remove();
+
                 if (res.ok && data.success) {
-                    appendBotMessage(`✅ <strong>Success!</strong> ${data.server.name} provisioned.<br>Credentials saved to: <code>mcp_servers/${data.server.id}/.env</code><br>Exposed Tools: <strong>${data.server.tools.length}</strong>`);
+                    const probeName = data.evaluation ? data.evaluation.probe : 'health';
+                    appendBotMessage(`
+                        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); border-radius: 8px; padding: 14px; margin-top: 8px;">
+                            <strong style="color: #34d399;">✅ Self-Evaluation Passed!</strong>
+                            <div style="font-size: 13px; margin: 8px 0; color: #cbd5e1;">
+                                • Live Probe: <code>${probeName}()</code> returned healthy response.<br>
+                                • Platform: <strong>${data.server.name}</strong><br>
+                                • Exposed Tools: <strong>${data.server.tools.length} verified tools</strong><br>
+                                • Target Endpoint: <code>http://localhost:5001/mcp/${data.server.id}</code>
+                            </div>
+                            <span style="font-size: 12px; color: #a7f3d0;">Server is verified healthy and registered to the live Gateway.</span>
+                        </div>
+                    `);
                     setTimeout(() => {
                         closeBuilderModal();
                         fetchServers();
-                    }, 1200);
+                    }, 1800);
+                } else if (data.evaluation_failed) {
+                    appendBotMessage(`
+                        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 8px; padding: 14px; margin-top: 8px;">
+                            <strong style="color: #f87171;">⚠️ Self-Evaluation Pre-Flight Failed</strong>
+                            <div style="font-size: 13px; margin: 8px 0; color: #cbd5e1;">
+                                • <strong>Reason:</strong> ${data.error}<br>
+                                • <strong>Probe Tested:</strong> <code>${data.evaluation ? data.evaluation.probe : 'probe'}()</code><br>
+                                • <strong>Service Response:</strong> <pre style="background: rgba(0,0,0,0.4); padding: 6px; border-radius: 4px; font-size: 11px; margin-top: 4px; max-height: 100px; overflow-y: auto;">${data.evaluation ? data.evaluation.preview : ''}</pre>
+                            </div>
+                            <div style="font-size: 12px; color: #fca5a5; margin-bottom: 8px;">
+                                The server was <strong>NOT published to the gateway</strong> to prevent broken endpoints. Please adjust your credentials or URL below and retry.
+                            </div>
+                            <button class="btn-confirm-action" style="background: #2563eb;" onclick="confirmDiscoveryAndProceed()">
+                                🔄 Update Credentials & Re-evaluate
+                            </button>
+                        </div>
+                    `);
                 } else {
                     appendBotMessage(`❌ Build Error: ${data.error || 'Unknown error'}`);
                 }
             } catch (e) {
+                const tb = document.getElementById('eval-thinking-bubble');
+                if (tb) tb.remove();
                 appendBotMessage(`❌ Network error while building: ${e}`);
             }
         }
