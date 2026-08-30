@@ -173,6 +173,8 @@ sequenceDiagram
 
 [![AI DevOps Value Stream Portal Dashboard](docs/images/01_portal_mcp_servers.png)](docs/images/01_portal_mcp_servers.png)
 
+<img width="1885" height="903" alt="image" src="https://github.com/user-attachments/assets/00263c51-1c5e-4306-b61c-639479df8c90" />
+
 ---
 
 ### 2. 🤖 Interactive Conversational MCP Server Architect
