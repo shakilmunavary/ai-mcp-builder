@@ -26,7 +26,7 @@ from mistral_service import (
     sanitize_tool_parameters, chat_with_mcp_architect, chat_with_mcp_agent,
     chat_with_bot_architect, session_mgr
 )
-from bot_engine import bot_registry, run_bot_workflow, synthesize_bot_with_mistral
+from bot_engine import bot_registry, run_bot_workflow, synthesize_bot_with_mistral, daemon_manager
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_JSON_PATH = os.path.join(BASE_DIR, "config.json")
@@ -1016,6 +1016,29 @@ def get_bot_logs(bot_id):
         "last_run": bot.get("last_run"),
         "run_history": bot.get("run_history", [])
     })
+
+
+@app.route("/api/bots/<bot_id>/start_daemon", methods=["POST"])
+def start_bot_daemon(bot_id):
+    """Start background continuous monitoring loop for a bot."""
+    data = request.get_json() or {}
+    interval = int(data.get("interval_seconds") or 5)
+    success = daemon_manager.start(bot_id, interval_seconds=interval)
+    return jsonify({"success": success, "is_running": True, "interval_seconds": interval})
+
+
+@app.route("/api/bots/<bot_id>/stop_daemon", methods=["POST"])
+def stop_bot_daemon(bot_id):
+    """Stop background continuous monitoring loop for a bot."""
+    success = daemon_manager.stop(bot_id)
+    return jsonify({"success": success, "is_running": False})
+
+
+@app.route("/api/bots/<bot_id>/daemon_status", methods=["GET"])
+def get_bot_daemon_status(bot_id):
+    """Get active daemon status for a bot."""
+    is_running = daemon_manager.is_running(bot_id)
+    return jsonify({"bot_id": bot_id, "is_running": is_running})
 
 
 def main():

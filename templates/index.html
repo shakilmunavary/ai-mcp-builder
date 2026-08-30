@@ -2417,14 +2417,14 @@
 
             botKeys.forEach(botId => {
                 const bot = allBots[botId];
-                const isActive = bot.status === 'active';
-                if (isActive) activeCount++;
+                const isRunning = !!bot.is_running;
+                if (isRunning) activeCount++;
                 totalRuns += (bot.run_count || 0);
 
                 // Count incident creations in history
                 if (bot.run_history) {
                     bot.run_history.forEach(r => {
-                        if (r.status === 'incident_created') totalIncidents++;
+                        if (r.status === 'incident_created' || r.status === 'incident_resolved') totalIncidents++;
                     });
                 }
 
@@ -2441,17 +2441,17 @@
                             </div>
                             <span class="bot-category" style="margin-top: 4px; display: inline-block;">${escapeHtml(bot.category || 'DevOps Automation')}</span>
                         </div>
-                        <span class="bot-status-pill ${isActive ? 'active' : 'inactive'}" id="bot-status-${botId}">
-                            <span class="pulse-dot" style="background: ${isActive ? '#22c55e' : '#ef4444'};"></span>
-                            ${isActive ? 'Active 🟢' : 'Inactive 🔴'}
+                        <span class="bot-status-pill ${isRunning ? 'active' : 'inactive'}" id="bot-status-${botId}" style="${isRunning ? 'background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; color: #4ade80;' : 'background: rgba(148, 163, 184, 0.15); border: 1px solid #475569; color: #94a3b8;'}">
+                            <span class="pulse-dot" style="background: ${isRunning ? '#22c55e' : '#94a3b8'};"></span>
+                            ${isRunning ? 'Watching (5s loop) 🟢' : 'Stopped ⚪'}
                         </span>
                     </div>
 
                     <div class="bot-desc">${escapeHtml(bot.description || bot.instructions)}</div>
 
                     <div class="bot-context-tags">
-                        <span class="bot-tag">🐳 ${escapeHtml(ctx.container_name || 'java-app')}</span>
-                        <span class="bot-tag">🎫 SNOW Incident</span>
+                        <span class="bot-tag">🐳 ${escapeHtml(ctx.container_name || 'devops-vsp-sample-app')}</span>
+                        <span class="bot-tag">🎫 SNOW Auto-Resolve</span>
                         ${ctx.github_repo ? `<span class="bot-tag">🐙 ${escapeHtml(ctx.github_repo.split('/')[1] || ctx.github_repo)}</span>` : ''}
                         ${ctx.jenkins_job ? `<span class="bot-tag">⚙️ ${escapeHtml(ctx.jenkins_job)}</span>` : ''}
                     </div>
@@ -2462,17 +2462,23 @@
                             <div style="font-size: 10px; color: var(--text-muted);">${bot.last_run ? `Last: ${bot.last_run}` : 'Never executed'}</div>
                         </div>
 
-                        <div class="bot-actions">
-                            <button class="btn-bot-run" id="btn-run-${botId}" onclick="runBotNow('${botId}')">
-                                ▶️ Run Now
+                        <div class="bot-actions" style="display: flex; gap: 8px; align-items: center;">
+                            ${isRunning ? `
+                                <button class="btn-bot-action" style="background: #ef4444; color: white; border: 1px solid #dc2626; font-weight: 700; padding: 7px 14px; border-radius: 6px; cursor: pointer;" onclick="stopWatchdog('${botId}')">
+                                    ⏹️ Stop Watchdog
+                                </button>
+                            ` : `
+                                <button class="btn-bot-run" style="background: #10b981; color: white; border: none; font-weight: 700; padding: 7px 14px; border-radius: 6px; cursor: pointer;" onclick="startWatchdog('${botId}')">
+                                    ▶️ Start Watchdog (5s)
+                                </button>
+                            `}
+                            <button class="btn-bot-action" style="background: rgba(30, 41, 59, 0.8); border: 1px solid var(--border-color); color: #cbd5e1; padding: 7px 12px; border-radius: 6px; cursor: pointer;" onclick="runBotNow('${botId}')" title="Run single pass right now">
+                                ⚡ Trigger Once
                             </button>
-                            <button class="btn-bot-action" onclick="toggleBotStatus('${botId}')">
-                                ${isActive ? '⏸️ Pause' : '▶️ Activate'}
-                            </button>
-                            <button class="btn-bot-action" onclick="openBotLogsModal('${botId}')">
+                            <button class="btn-bot-action" style="background: rgba(30, 41, 59, 0.8); border: 1px solid var(--border-color); color: #cbd5e1; padding: 7px 12px; border-radius: 6px; cursor: pointer;" onclick="openBotLogsModal('${botId}')">
                                 📜 Logs & RCA
                             </button>
-                            <button class="btn-bot-action btn-bot-delete" onclick="deleteBot('${botId}')" title="Delete Bot">
+                            <button class="btn-bot-action btn-bot-delete" onclick="deleteBot('${botId}')" title="Delete Bot" style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #f87171; padding: 7px 10px; border-radius: 6px; cursor: pointer;">
                                 🗑️
                             </button>
                         </div>
@@ -2486,6 +2492,41 @@
             document.getElementById('metric-active-bots').textContent = activeCount;
             document.getElementById('metric-total-runs').textContent = totalRuns;
             document.getElementById('metric-incidents').textContent = totalIncidents;
+        }
+
+        
+        async function startWatchdog(botId) {
+            try {
+                const res = await fetch(`/api/bots/${botId}/start_daemon`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ interval_seconds: 5 })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('🚀 Watchdog started! Monitoring container logs every 5 seconds.', 'success');
+                    await loadBots();
+                } else {
+                    showToast(`❌ Failed to start watchdog: ${data.error || 'Unknown error'}`, 'error');
+                }
+            } catch (e) {
+                showToast(`❌ Network error: ${e}`, 'error');
+            }
+        }
+
+        async function stopWatchdog(botId) {
+            try {
+                const res = await fetch(`/api/bots/${botId}/stop_daemon`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('⏹️ Watchdog stopped cleanly.', 'info');
+                    await loadBots();
+                } else {
+                    showToast(`❌ Failed to stop watchdog: ${data.error || 'Unknown error'}`, 'error');
+                }
+            } catch (e) {
+                showToast(`❌ Network error: ${e}`, 'error');
+            }
         }
 
         async function runBotNow(botId) {

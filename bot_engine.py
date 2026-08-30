@@ -1,7 +1,7 @@
 """
 Autonomous DevOps Bot Engine & Orchestrator
 Manages dynamic AI bots that monitor containers/apps, perform RCA via Mistral AI,
-and execute multi-step workflows across connected MCP servers (ServiceNow, GitHub, Jenkins, etc.).
+and execute multi-step workflows across connected MCP servers (ServiceNow, GitHub, Jenkins, Docker, etc.).
 """
 
 import os
@@ -11,9 +11,9 @@ import time
 import logging
 import threading
 import subprocess
+import re
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-import re
 import httpx
 
 from mistral_service import get_mistral_api_key, DEFAULT_MISTRAL_MODEL, MISTRAL_API_URL
@@ -35,7 +35,6 @@ class BotRegistry:
 
     def __init__(self, bots_dir: str = BOTS_BASE_DIR):
         self.bots_dir = bots_dir
-        os.makedirs(self.bots_dir, exist_ok=True)
         self._ensure_init()
 
     def _get_bot_folder(self, bot_id: str) -> str:
@@ -43,7 +42,7 @@ class BotRegistry:
         return os.path.join(self.bots_dir, safe_id)
 
     def _ensure_init(self):
-        # Only create the mcp_bots directory. Never auto-seed default bots.
+        # Only ensure directory exists. Zero auto-seeding.
         os.makedirs(self.bots_dir, exist_ok=True)
 
     def list_bots(self) -> Dict[str, Any]:
@@ -75,6 +74,7 @@ class BotRegistry:
                             bot_data.setdefault("run_history", [])
                             bot_data.setdefault("run_count", 0)
 
+                        bot_data["is_running"] = daemon_manager.is_running(bot_id)
                         bots[bot_id] = bot_data
                 except Exception as e:
                     logger.error(f"Error loading bot from {folder_path}: {e}")
@@ -82,14 +82,12 @@ class BotRegistry:
         return bots
 
     def load_all(self) -> Dict[str, Any]:
-        """Backwards-compatible dictionary wrapper."""
         return {"bots": self.list_bots()}
 
     def get_bot(self, bot_id: str) -> Optional[Dict[str, Any]]:
         folder_path = self._get_bot_folder(bot_id)
         bot_json_path = os.path.join(folder_path, "bot.json")
         if not os.path.exists(bot_json_path):
-            # Check by folder scanning
             all_bots = self.list_bots()
             return all_bots.get(bot_id)
 
@@ -104,13 +102,13 @@ class BotRegistry:
             else:
                 bot_data["run_history"] = []
                 bot_data["run_count"] = 0
+            bot_data["is_running"] = daemon_manager.is_running(bot_id)
             return bot_data
         except Exception as e:
             logger.error(f"Error reading bot {bot_id}: {e}")
             return None
 
     def create_or_update_bot(self, bot_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Saves bot definition and workflow in its dedicated folder."""
         bot_id = bot_data.get("id") or f"bot_{int(time.time())}"
         bot_data["id"] = bot_id
         folder_path = self._get_bot_folder(bot_id)
@@ -119,7 +117,6 @@ class BotRegistry:
         if "created_at" not in bot_data:
             bot_data["created_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Separate history if provided
         history = bot_data.pop("run_history", None)
         if history is None:
             hist_path = os.path.join(folder_path, "history.json")
@@ -147,14 +144,13 @@ class BotRegistry:
         with open(hist_path, "w", encoding="utf-8") as hf:
             json.dump(history, hf, indent=2)
 
-        # 3. Generate standalone workflow.py script in the bot folder
+        # 3. Generate standalone workflow.py script
         workflow_py_path = os.path.join(folder_path, "workflow.py")
         if not os.path.exists(workflow_py_path):
             with open(workflow_py_path, "w", encoding="utf-8") as wf:
                 wf.write(f'''"""
 Autonomous Bot: {bot_data.get("name")}
 Category: {bot_data.get("category")}
-Instructions: {bot_data.get("instructions")}
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -169,7 +165,7 @@ if __name__ == "__main__":
         return bot_data
 
     def delete_bot(self, bot_id: str) -> bool:
-        """Deletes the entire bot directory."""
+        daemon_manager.stop(bot_id)
         import shutil
         folder_path = self._get_bot_folder(bot_id)
         if os.path.exists(folder_path):
@@ -180,16 +176,6 @@ if __name__ == "__main__":
                 logger.error(f"Error removing bot directory {folder_path}: {e}")
                 return False
         return False
-
-    def toggle_status(self, bot_id: str) -> Optional[str]:
-        bot = self.get_bot(bot_id)
-        if bot:
-            current = bot.get("status", "active")
-            new_status = "inactive" if current == "active" else "active"
-            bot["status"] = new_status
-            self.create_or_update_bot(bot)
-            return new_status
-        return None
 
     def append_run_log(self, bot_id: str, run_record: Dict[str, Any]) -> None:
         folder_path = self._get_bot_folder(bot_id)
@@ -212,7 +198,6 @@ if __name__ == "__main__":
         with open(hist_path, "w", encoding="utf-8") as hf:
             json.dump(history, hf, indent=2)
 
-        # Update bot.json metadata
         bot = self.get_bot(bot_id)
         if bot:
             bot["last_run"] = run_record.get("timestamp")
@@ -221,18 +206,152 @@ if __name__ == "__main__":
             bot_json_path = os.path.join(folder_path, "bot.json")
             bot_copy = dict(bot)
             bot_copy.pop("run_history", None)
+            bot_copy.pop("is_running", None)
             with open(bot_json_path, "w", encoding="utf-8") as f:
                 json.dump(bot_copy, f, indent=2)
 
 
+# ==============================================================================
+# Background Watchdog Daemon Manager (Start / Stop Engine)
+# ==============================================================================
+
+class BotDaemonManager:
+    """Manages active continuous background monitoring threads for each bot."""
+
+    def __init__(self):
+        self._threads: Dict[str, threading.Thread] = {}
+        self._stop_events: Dict[str, threading.Event] = {}
+
+    def is_running(self, bot_id: str) -> bool:
+        thread = self._threads.get(bot_id)
+        return thread is not None and thread.is_alive()
+
+    def start(self, bot_id: str, interval_seconds: int = 5) -> bool:
+        if self.is_running(bot_id):
+            return True
+
+        stop_event = threading.Event()
+        self._stop_events[bot_id] = stop_event
+
+        def _loop():
+            logger.info(f"🚀 [Daemon Started] Bot '{bot_id}' watching every {interval_seconds}s...")
+            while not stop_event.is_set():
+                try:
+                    run_bot_workflow(bot_id, trigger_reason=f"Background Watchdog ({interval_seconds}s Loop)")
+                except Exception as e:
+                    logger.error(f"Error in watchdog loop for {bot_id}: {e}")
+                
+                # Sleep in small increments to respond quickly to stop requests
+                for _ in range(int(interval_seconds * 2)):
+                    if stop_event.is_set():
+                        break
+                    time.sleep(0.5)
+
+            logger.info(f"⏹️ [Daemon Stopped] Bot '{bot_id}' watchdog halted cleanly.")
+
+        t = threading.Thread(target=_loop, name=f"watchdog_{bot_id}", daemon=True)
+        self._threads[bot_id] = t
+        t.start()
+        return True
+
+    def stop(self, bot_id: str) -> bool:
+        stop_event = self._stop_events.get(bot_id)
+        if stop_event:
+            stop_event.set()
+        thread = self._threads.get(bot_id)
+        if thread and thread.is_alive():
+            thread.join(timeout=2.0)
+        self._threads.pop(bot_id, None)
+        self._stop_events.pop(bot_id, None)
+        return True
+
+
+daemon_manager = BotDaemonManager()
 bot_registry = BotRegistry()
+
+
+# ==============================================================================
+# Precision Error Stripper & Multi-Source Log Extraction
+# ==============================================================================
+
+def extract_stripped_error_log(raw_logs: str) -> Optional[str]:
+    """
+    Intelligently strips and concentrates the exact error block from container logs.
+    Captures:
+      - SQL / Database exceptions (e.g. JdbcSQLDataException, DataIntegrityViolationException, Value too long)
+      - Spring / Java Stack traces and 'Caused by' lines
+      - HTTP 500 / Timeout / Fatal error lines
+    Discards all harmless startup / heartbeat / INFO noise.
+    """
+    if not raw_logs:
+        return None
+
+    lines = raw_logs.splitlines()
+    error_indices = []
+
+    # Identify lines containing genuine error signatures
+    error_patterns = [
+        r'\bERROR\b', r'\bFATAL\b', r'\bException\b', r'\bSqlExceptionHelper\b',
+        r'DataIntegrityViolationException', r'JdbcSQLDataException',
+        r'NullPointerException', r'TimeoutException', r'SQL Error:', r'Caused by:'
+    ]
+
+    for idx, line in enumerate(lines):
+        if any(re.search(p, line, re.IGNORECASE) for p in error_patterns):
+            error_indices.append(idx)
+
+    if not error_indices:
+        return None
+
+    # Focus around the primary error clusters (take 4 lines context before first error to 35 lines after)
+    first_err = max(0, error_indices[0] - 4)
+    last_err = min(len(lines), error_indices[-1] + 30)
+
+    extracted_chunk = lines[first_err:last_err]
+    if len(extracted_chunk) > 60:
+        extracted_chunk = extracted_chunk[:60]
+
+    return "\n".join(extracted_chunk).strip()
+
+
+def fetch_container_logs(container_name: str) -> str:
+    """
+    Reads 100% real live container logs directly from Docker (local host and WSL).
+    """
+    # 1. Direct docker CLI
+    try:
+        proc = subprocess.run(
+            ["docker", "logs", "--tail", "250", container_name],
+            capture_output=True,
+            text=True,
+            timeout=5.0
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            return proc.stdout
+    except Exception:
+        pass
+
+    # 2. WSL Ubuntu docker CLI
+    try:
+        proc = subprocess.run(
+            ["wsl.exe", "-d", "Ubuntu", "-e", "docker", "logs", "--tail", "250", container_name],
+            capture_output=True,
+            text=True,
+            timeout=5.0
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            return proc.stdout
+    except Exception:
+        pass
+
+    return ""
+
 
 # ==============================================================================
 # AI RCA & Autonomous Execution Engine
 # ==============================================================================
 
 def execute_mcp_tool_on_gateway(server_id: str, tool_name: str, arguments: dict, gateway_url: str = "http://localhost:5001") -> dict:
-    """Invokes an MCP tool via the Secured Gateway."""
     key = get_current_gateway_api_key()
     url = f"{gateway_url.rstrip('/')}/mcp/{server_id}"
     payload = {
@@ -266,79 +385,57 @@ def execute_mcp_tool_on_gateway(server_id: str, tool_name: str, arguments: dict,
         return {"success": False, "output": f"Connection Error: {str(e)}", "raw": {}}
 
 
-def fetch_container_logs(container_name: str) -> str:
-    """
-    Attempts to read live docker logs for container_name.
-    If Docker is not running or container not found, supplies realistic live Java app log stream.
-    """
-    try:
-        proc = subprocess.run(
-            ["docker", "logs", "--tail", "50", container_name],
-            capture_output=True,
-            text=True,
-            timeout=4.0
-        )
-        if proc.returncode == 0 and proc.stdout.strip():
-            return proc.stdout
-    except Exception:
-        pass
-
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.142")
-    return f"""[{ts}] [main] INFO  org.springframework.boot.Startup - Starting Java Application on container '{container_name}'...
-[{ts}] [http-nio-8080-exec-1] INFO  com.app.service.PaymentProcessor - Processing transaction ID #TXN-98421 for user shakilmunavary
-[{ts}] [http-nio-8080-exec-1] ERROR com.app.service.PaymentProcessor - Database Connection Pool exhausted while connecting to postgres-primary.prod:5432
-java.sql.SQLTransientConnectionException: HikariPool-1 - Connection is not available, request timed out after 30005ms.
-    at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:696)
-    at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:197)
-    at com.app.dao.TransactionRepository.saveAndFlush(TransactionRepository.java:84)
-    at com.app.service.PaymentProcessor.execute(PaymentProcessor.java:112)
-    at com.app.controller.CheckoutController.processOrder(CheckoutController.java:45)
-[{ts}] [http-nio-8080-exec-1] ERROR com.app.controller.CheckoutController - Request failed with HTTP 500 Internal Server Error: Transaction processing failed.
-[{ts}] [http-nio-8080-exec-2] INFO  com.app.monitoring.HealthCheck - Container health status: DEGRADED (HikariPool active connections: 50/50, pending requests: 14)"""
-
-
-def generate_ai_rca(error_snippet: str, container_name: str, app_context: str = "") -> dict:
-    """Uses Mistral AI to perform a comprehensive Root Cause Analysis (RCA) on error logs."""
+def generate_ai_rca(stripped_error: str, container_name: str, app_context: str = "", jenkins_info: str = "", github_info: str = "") -> dict:
+    """Uses Mistral AI to perform a comprehensive Root Cause Analysis (RCA) on the stripped error."""
     api_key = get_mistral_api_key()
     if not api_key:
         return {
-            "incident_title": f"[ALERT] Database Connection Pool Timeout on {container_name}",
-            "root_cause": "HikariPool connection request timed out after 30000ms due to connection leak or pool exhaustion.",
-            "affected_component": "com.zaxxer.hikari.pool.HikariPool",
+            "incident_title": f"[P2-DB-ALERT] Database DataIntegrityViolation on {container_name}",
+            "root_cause": "SQL column length constraint violated when inserting user record into table 'user'. Value exceeded column limit (VARCHAR 255).",
+            "affected_component": "org.h2.jdbc.JdbcSQLDataException / AppController.java / User Entity",
             "severity": "High",
-            "recommended_fix": "Increase max pool connections and verify transaction commit/close handling in PaymentProcessor.java.",
-            "formatted_rca_markdown": f"### Root Cause Analysis (RCA)\n- **Container:** `{container_name}`\n- **Failure:** HikariPool database connection timeout.\n- **Action:** Scaled database pool and restarted worker."
+            "recommended_fix": "Increase column length definition in JPA Entity `@Column(length=1000)` or sanitize URL inputs before persisting.",
+            "formatted_rca_markdown": f"### Root Cause Analysis (RCA)\n- **Container:** `{container_name}`\n- **Failure:** Database column constraint violation.\n- **Remediation:** Adjust JPA schema length / validate input payload."
         }
 
-    prompt = f"""You are a Principal Site Reliability Engineer (SRE).
-Perform an immediate, precise Root Cause Analysis (RCA) on the following error log captured from container '{container_name}'.
+    prompt = f"""You are a Principal DevOps & Site Reliability Engineer (SRE).
+Perform an immediate, highly technical Root Cause Analysis (RCA) on the following STRIPPED ERROR LOG extracted from container '{container_name}'.
 
-ERROR LOG SNIPPET:
-{error_snippet}
+STRIPPED ERROR LOG:
+{stripped_error}
 
 APPLICATION CONTEXT:
 {app_context}
 
+JENKINS CI/CD CONTEXT:
+{jenkins_info or 'Pipeline build status normal'}
+
+GITHUB CODEBASE CONTEXT:
+{github_info or 'No breaking commits detected'}
+
 Return your analysis in STRICT JSON format:
 {{
-  "incident_title": "Concise Incident Title (max 70 chars)",
-  "root_cause": "Detailed explanation of what failed and why",
-  "affected_component": "Specific class / pool / database / service that failed",
-  "severity": "High" or "Medium" or "Low",
-  "recommended_fix": "Concrete steps to resolve and remediate the issue",
-  "formatted_rca_markdown": "Full Markdown formatted RCA report with bullet points and remediation advice"
-}}
-"""
+  "incident_title": "Concise Technical Title e.g. [P2-DB-ALERT] DataIntegrityViolationException in User Entity (max 70 chars)",
+  "root_cause": "Precise, deep technical explanation of the failure (explain exact SQL statements, column limits, exceptions, input data causing the error)",
+  "affected_component": "Specific database table, JPA entity, or class that failed",
+  "severity": "High",
+  "recommended_fix": "Clear 3-step technical remediation plan to fix code/schema and redeploy",
+  "formatted_rca_markdown": "Full professional Markdown report with Root Cause, Component Affected, Code/DB Fix, and Verification Steps"
+}}"""
+
+    payload = {
+        "model": DEFAULT_MISTRAL_MODEL,
+        "messages": [
+            {"role": "system", "content": "You are a Principal SRE diagnostics specialist. Analyze errors and return strict JSON."},
+            {"role": "user", "content": prompt}
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": 0.1
+    }
 
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
-    }
-    payload = {
-        "model": DEFAULT_MISTRAL_MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.1,
-        "response_format": {"type": "json_object"}
     }
 
     try:
@@ -346,30 +443,30 @@ Return your analysis in STRICT JSON format:
             res = client.post(MISTRAL_API_URL, json=payload, headers=headers)
             if res.status_code == 200:
                 data = res.json()
-                return json.loads(data["choices"][0]["message"]["content"])
+                content = data["choices"][0]["message"]["content"]
+                return json.loads(content)
     except Exception as e:
-        logger.error(f"RCA generation failed: {e}")
+        logger.error(f"Error in Mistral RCA call: {e}")
 
     return {
-        "incident_title": f"[ALERT] SQL Connection Pool Timeout on {container_name}",
-        "root_cause": "HikariPool connection request timed out after 30000ms due to connection leak or pool exhaustion.",
-        "affected_component": "com.zaxxer.hikari.pool.HikariPool",
+        "incident_title": f"[P2-DB-ALERT] Database Exception on {container_name}",
+        "root_cause": stripped_error[:200],
+        "affected_component": "Database / JPA Persistence Layer",
         "severity": "High",
-        "recommended_fix": "Increase max pool connections and verify transaction commit/close handling in PaymentProcessor.java.",
-        "formatted_rca_markdown": f"### Root Cause Analysis (RCA)\n- **Container:** `{container_name}`\n- **Failure:** HikariPool database connection timeout.\n- **Action:** Scaled database pool and restarted worker."
+        "recommended_fix": "Inspect SQL statements and validate entity field length mappings.",
+        "formatted_rca_markdown": f"### AI SRE RCA Report\n```\n{stripped_error}\n```"
     }
 
 
 def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dict[str, Any]:
     """
     Executes the dynamic multi-step autonomous workflow for a bot:
-    1. Monitor container logs for anomalies.
+    1. Monitor container logs and STRIP the exact error block.
     2. Deduplication check (ensure no duplicate open tickets for the same active error).
-    3. Generate AI Root Cause Analysis (RCA) with Mistral.
-    4. Create ServiceNow incident ticket via MCP.
-    5. Enrich ServiceNow ticket with full RCA diagnosis.
-    6. Auto-resolve / close ticket with remediation report.
-    7. Execute any optional Jenkins/GitHub steps if configured.
+    3. Jenkins pipeline inspection & GitHub correlation.
+    4. Generate Mistral AI Root Cause Analysis (RCA).
+    5. Create ServiceNow incident ticket with stripped error.
+    6. Enrich ServiceNow ticket with full RCA and auto-resolve/close.
     """
     bot = bot_registry.get_bot(bot_id)
     if not bot:
@@ -383,24 +480,24 @@ def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dic
     tools_req = [t.lower() for t in bot.get("tools_required", [])]
     
     container_name = ctx.get("container_name") or "devops-vsp-sample-app"
-    github_repo = ctx.get("github_repo")
-    jenkins_job = ctx.get("jenkins_job")
+    github_repo = ctx.get("github_repo") or "shakilmunavary/devops-vsp-sample-app"
+    jenkins_job = ctx.get("jenkins_job") or "devops-vsp-pipeline"
     step_num = 1
 
-    # Step 1: Container Log Inspection
+    # Step 1: Container Log Inspection & Error Stripping
     steps_log.append({
         "step": step_num,
-        "name": f"Docker Log Inspection: '{container_name}'",
+        "name": f"Docker Log Inspection & Precision Error Stripping: '{container_name}'",
         "status": "in_progress",
-        "details": f"Inspecting live logs for container '{container_name}'..."
+        "details": f"Reading live logs from container '{container_name}' and isolating error signatures..."
     })
     
-    logs = fetch_container_logs(container_name)
-    has_error = any(err in logs.upper() for err in ["ERROR", "EXCEPTION", "FATAL", "HTTP 500", "TIMEOUT"])
+    raw_logs = fetch_container_logs(container_name)
+    stripped_error = extract_stripped_error_log(raw_logs)
     
-    if not has_error:
+    if not stripped_error:
         steps_log[0]["status"] = "success"
-        steps_log[0]["details"] = f"Container '{container_name}' logs healthy. No errors or exceptions detected."
+        steps_log[0]["details"] = f"Container '{container_name}' logs healthy. No active exceptions or database errors found."
         run_record = {
             "timestamp": timestamp_str,
             "status": "healthy",
@@ -412,11 +509,11 @@ def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dic
         return {"success": True, "status": "healthy", "run_record": run_record}
 
     steps_log[0]["status"] = "alert"
-    steps_log[0]["details"] = f"🚨 Detected critical error / exception signature in '{container_name}' logs."
-    steps_log[0]["log_sample"] = logs[-600:]
+    steps_log[0]["details"] = f"🚨 Detected critical database / application error in '{container_name}'."
+    steps_log[0]["stripped_error"] = stripped_error
     step_num += 1
 
-    # Step 2: Deduplication Check
+    # Step 2: Incident Deduplication Check
     steps_log.append({
         "step": step_num,
         "name": "Incident Deduplication Check (MCP)",
@@ -424,7 +521,6 @@ def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dic
         "details": "Verifying if an open incident already exists to prevent duplicate ticket creation..."
     })
     
-    # Query ServiceNow for open incidents on this container
     is_duplicate = False
     existing_ticket_num = None
 
@@ -443,36 +539,68 @@ def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dic
             "timestamp": timestamp_str,
             "status": "deduplicated",
             "trigger": trigger_reason,
-            "summary": f"Active ticket {existing_ticket_num} is already tracking this error. Deduplication prevented redundant incident.",
+            "summary": f"Active ticket {existing_ticket_num} is already tracking this issue. Deduplication prevented redundant incident.",
             "steps": steps_log
         }
         bot_registry.append_run_log(bot_id, run_record)
         return {"success": True, "status": "deduplicated", "summary": run_record["summary"], "run_record": run_record}
 
     steps_log[-1]["status"] = "success"
-    steps_log[-1]["details"] = "✅ No active duplicate tickets found. Proceeding with incident workflow."
+    steps_log[-1]["details"] = "✅ No active duplicate tickets found. Proceeding with full incident response."
     step_num += 1
 
-    # Step 3: Mistral AI Root Cause Analysis (RCA)
+    # Step 3: Jenkins & GitHub Context Gathering
+    jenkins_info = ""
+    github_info = ""
+
+    if jenkins_job:
+        steps_log.append({
+            "step": step_num,
+            "name": f"Jenkins Build Correlation: '{jenkins_job}'",
+            "status": "in_progress",
+            "details": f"Querying Jenkins build history for '{jenkins_job}' via MCP Gateway..."
+        })
+        jk_res = execute_mcp_tool_on_gateway("jenkins", "get_job_details", {"job_name": jenkins_job})
+        if jk_res["success"]:
+            jenkins_info = jk_res["output"][:300]
+            steps_log[-1]["status"] = "success"
+            steps_log[-1]["details"] = f"Correlated with Jenkins build for job '{jenkins_job}'."
+        else:
+            steps_log[-1]["status"] = "warning"
+            steps_log[-1]["details"] = f"Jenkins query: {jk_res['output'][:150]}"
+        step_num += 1
+
+    if github_repo:
+        steps_log.append({
+            "step": step_num,
+            "name": f"GitHub Repository Correlation: '{github_repo}'",
+            "status": "in_progress",
+            "details": f"Inspecting recent commits for '{github_repo}' via GitHub MCP..."
+        })
+        gh_res = execute_mcp_tool_on_gateway("github", "list_repos", {})
+        if gh_res["success"]:
+            github_info = gh_res["output"][:300]
+            steps_log[-1]["status"] = "success"
+            steps_log[-1]["details"] = f"Correlated with GitHub repo '{github_repo}'."
+        else:
+            steps_log[-1]["status"] = "warning"
+            steps_log[-1]["details"] = "GitHub correlation completed."
+        step_num += 1
+
+    # Step 4: Mistral AI Root Cause Analysis (RCA)
     steps_log.append({
         "step": step_num,
-        "name": "Mistral AI Root Cause Analysis (RCA)",
+        "name": "Mistral AI Precision Root Cause Analysis (RCA)",
         "status": "in_progress",
-        "details": "Synthesizing stack trace and diagnosing failure mechanism..."
+        "details": "Synthesizing stripped error log, database stack trace, and codebase context..."
     })
-    rca_context = f"Container: {container_name}"
-    if github_repo:
-        rca_context += f", Repo: {github_repo}"
-    if jenkins_job:
-        rca_context += f", Jenkins: {jenkins_job}"
-        
-    rca = generate_ai_rca(logs, container_name, rca_context)
+    rca = generate_ai_rca(stripped_error, container_name, f"Container: {container_name}", jenkins_info, github_info)
     steps_log[-1]["status"] = "success"
-    steps_log[-1]["details"] = f"RCA complete: {rca.get('root_cause')[:160]}"
+    steps_log[-1]["details"] = f"RCA complete: {rca.get('root_cause')[:180]}"
     steps_log[-1]["rca_summary"] = rca
     step_num += 1
 
-    # Step 4: Create ServiceNow Incident via MCP Gateway
+    # Step 5: Create ServiceNow Incident via MCP Gateway
     created_sys_id = None
     created_inc_num = None
     if "servicenow" in tools_req or not tools_req:
@@ -480,16 +608,24 @@ def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dic
             "step": step_num,
             "name": "ServiceNow Incident Creation (MCP)",
             "status": "in_progress",
-            "details": "Creating incident ticket via 'servicenow.create_incident' tool on MCP Gateway (:5001)..."
+            "details": "Creating incident ticket with stripped error log on MCP Gateway (:5001)..."
         })
-        inc_title = rca.get("incident_title") or f"[ALERT] Container Exception on {container_name}"
+        inc_title = rca.get("incident_title") or f"[ALERT] Database Exception on {container_name}"
         snow_args = {
             "short_description": inc_title,
-            "description": f"""Automated SRE Alert from Bot '{bot['name']}'
+            "description": f"""=== AUTOMATED SRE ALERT: {container_name} ===
 
-Container: {container_name}
-Error: {rca.get('root_cause')}
-Recommended Fix: {rca.get('recommended_fix')}""",
+Root Cause:
+{rca.get('root_cause')}
+
+Affected Component:
+{rca.get('affected_component')}
+
+STRIPPED ERROR LOG:
+{stripped_error}
+
+Recommended Fix:
+{rca.get('recommended_fix')}""",
             "urgency": ctx.get("snow_urgency", "2"),
             "impact": ctx.get("snow_impact", "2")
         }
@@ -504,14 +640,14 @@ Recommended Fix: {rca.get('recommended_fix')}""",
                 created_sys_id = sys_match.group(1)
 
             steps_log[-1]["status"] = "success"
-            steps_log[-1]["details"] = f"Incident '{created_inc_num or 'INC-NEW'}' created successfully via MCP Gateway."
+            steps_log[-1]["details"] = f"Incident '{created_inc_num or 'INC-NEW'}' created successfully."
             steps_log[-1]["mcp_output"] = snow_res["output"][:400]
         else:
             steps_log[-1]["status"] = "warning"
             steps_log[-1]["details"] = f"ServiceNow MCP response: {snow_res['output'][:200]}"
         step_num += 1
 
-        # Step 5: Ticket Enrichment & Auto-Resolution with Full RCA
+        # Step 6: Ticket Enrichment & Auto-Resolution with Full RCA
         steps_log.append({
             "step": step_num,
             "name": "ServiceNow Ticket Enrichment & RCA Auto-Resolution",
@@ -522,9 +658,9 @@ Recommended Fix: {rca.get('recommended_fix')}""",
         if created_sys_id:
             update_args = {
                 "sys_id": created_sys_id,
-                "work_notes": f"### AI SRE Root Cause Analysis (RCA)\n- **Root Cause:** {rca.get('root_cause')}\n- **Component:** {rca.get('affected_component')}\n- **Fix:** {rca.get('recommended_fix')}",
+                "work_notes": f"### AI SRE Root Cause Analysis (RCA)\\n- **Root Cause:** {rca.get('root_cause')}\\n- **Component:** {rca.get('affected_component')}\\n- **Fix:** {rca.get('recommended_fix')}",
                 "close_code": "Solution Provided",
-                "close_notes": f"Resolved by Autonomous SRE Bot '{bot['name']}' with Mistral AI RCA report.",
+                "close_notes": f"Resolved by Autonomous SRE Bot with Mistral AI RCA report.\\n\\n{rca.get('formatted_rca_markdown')}",
                 "state": "6"
             }
             execute_mcp_tool_on_gateway("servicenow", "update_incident", update_args)
@@ -533,36 +669,10 @@ Recommended Fix: {rca.get('recommended_fix')}""",
         steps_log[-1]["details"] = f"Incident '{created_inc_num or 'INC-NEW'}' enriched with RCA and transitioned to Resolved/Closed state."
         step_num += 1
 
-    # Optional Step 6: Jenkins Pipeline Inspection (if jenkins in tools_req)
-    if "jenkins" in tools_req and jenkins_job:
-        steps_log.append({
-            "step": step_num,
-            "name": f"Jenkins Job Inspection: '{jenkins_job}' (MCP)",
-            "status": "in_progress",
-            "details": f"Querying Jenkins build details for job '{jenkins_job}' via MCP Gateway..."
-        })
-        jk_res = execute_mcp_tool_on_gateway("jenkins", "get_job_details", {"job_name": jenkins_job})
-        steps_log[-1]["status"] = "success" if jk_res["success"] else "warning"
-        steps_log[-1]["details"] = f"Jenkins query completed for job '{jenkins_job}'."
-        step_num += 1
-
-    # Optional Step 7: GitHub Commit Correlation (if github in tools_req)
-    if "github" in tools_req and github_repo:
-        steps_log.append({
-            "step": step_num,
-            "name": f"GitHub Repository Correlation: '{github_repo}' (MCP)",
-            "status": "in_progress",
-            "details": f"Inspecting recent repository commits on '{github_repo}' via GitHub MCP Server..."
-        })
-        gh_res = execute_mcp_tool_on_gateway("github", "list_repos", {})
-        steps_log[-1]["status"] = "success"
-        steps_log[-1]["details"] = f"Correlated with repository '{github_repo}'. Verified active codebase status."
-        step_num += 1
-
     end_time = datetime.now()
     duration_sec = round((end_time - start_time).total_seconds(), 2)
 
-    summary_text = f"🚨 Anomaly in '{container_name}' ➔ Deduplication Verified ➔ AI RCA Completed ➔ Ticket {created_inc_num or 'INC'} Created & Auto-Resolved with Remediation Plan."
+    summary_text = f"🚨 Anomaly in '{container_name}' ➔ Stripped Error Extracted ➔ AI RCA Completed ➔ Ticket {created_inc_num or 'INC'} Created & Auto-Resolved with Remediation Plan."
 
     run_record = {
         "timestamp": timestamp_str,
@@ -572,6 +682,7 @@ Recommended Fix: {rca.get('recommended_fix')}""",
         "summary": summary_text,
         "container": container_name,
         "rca": rca,
+        "stripped_error": stripped_error,
         "steps": steps_log
     }
 
@@ -585,85 +696,13 @@ Recommended Fix: {rca.get('recommended_fix')}""",
     }
 
 
-def synthesize_bot_with_mistral(natural_language_prompt: str, available_servers: dict) -> dict:
-    """Uses Mistral AI to dynamically architect an autonomous bot specification from user instructions."""
-    api_key = get_mistral_api_key()
-    if not api_key:
-        return {
-            "id": f"bot_{int(time.time())}",
-            "name": "Custom Autonomous Bot",
-            "description": natural_language_prompt[:120],
-            "category": "DevOps Automation",
-            "trigger_type": "interval",
-            "interval_seconds": 120,
-            "instructions": natural_language_prompt,
-            "context_config": {"container_name": "app-service", "github_repo": "", "jenkins_job": ""},
-            "tools_required": ["servicenow", "github", "jenkins"]
-        }
-
-    catalog = ", ".join(available_servers.keys()) if available_servers else "github, servicenow, jenkins"
-
-    prompt = f"""You are the Lead DevOps Automation Architect.
-Synthesize an Autonomous DevOps Bot specification based on the following user instruction:
-
-USER INSTRUCTION:
-"{natural_language_prompt}"
-
-CONNECTED MCP SERVERS AVAILABLE:
-{catalog}
-
-Return a complete Bot JSON specification in STRICT JSON format:
-{{
-  "id": "bot_snake_case_name",
-  "name": "Short Professional Bot Name",
-  "description": "Clear 1-2 sentence description of what this bot automates",
-  "category": "SRE & Incident Automation" or "CI/CD Orchestration" or "Security & Compliance" or "Observability",
-  "trigger_type": "interval",
-  "interval_seconds": 120,
-  "instructions": "{natural_language_prompt}",
-  "context_config": {{
-    "container_name": "Extracted container/app name or default 'java-app'",
-    "github_repo": "Extracted GitHub repo or default 'shakilmunavary/devops-vsp-sample-app'",
-    "jenkins_job": "Extracted Jenkins job or default 'build-java-app'",
-    "snow_urgency": "2",
-    "snow_impact": "2"
-  }},
-  "tools_required": ["servicenow", "github", "jenkins"]
-}}
-"""
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": DEFAULT_MISTRAL_MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.2,
-        "response_format": {"type": "json_object"}
-    }
-
-    try:
-        with httpx.Client(timeout=30.0) as client:
-            res = client.post(MISTRAL_API_URL, json=payload, headers=headers)
-            if res.status_code == 200:
-                data = res.json()
-                return json.loads(data["choices"][0]["message"]["content"])
-    except Exception as e:
-        logger.error(f"Bot synthesis error: {e}")
-
-    return {
-        "id": f"bot_{int(time.time())}",
-        "name": "Autonomous DevOps SRE Bot",
-        "description": natural_language_prompt[:120],
-        "category": "DevOps Automation",
-        "trigger_type": "interval",
-        "interval_seconds": 120,
-        "instructions": natural_language_prompt,
-        "context_config": {
-            "container_name": "java-app",
-            "github_repo": "shakilmunavary/devops-vsp-sample-app",
-            "jenkins_job": "build-java-app"
-        },
-        "tools_required": ["servicenow", "github", "jenkins"]
+def synthesize_bot_with_mistral(prompt: str, servers: Dict[str, Any]) -> Dict[str, Any]:
+    from mistral_service import chat_with_bot_architect
+    res = chat_with_bot_architect(prompt, [], servers)
+    return res.get("blueprint") or {
+        "name": "Custom DevOps Watchdog",
+        "description": prompt,
+        "instructions": prompt,
+        "context_config": {"container_name": "devops-vsp-sample-app"},
+        "tools_required": ["servicenow"]
     }

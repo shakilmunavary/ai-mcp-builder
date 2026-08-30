@@ -1,0 +1,20 @@
+{
+  "id": "docker_log_monitor_snow_incident",
+  "name": "Docker Log Monitor with AI RCA",
+  "category": "SRE & Incident Automation",
+  "description": "Monitors Docker logs for devops-vsp-sample-app, extracts stripped error, performs AI RCA, creates ServiceNow incident, and auto-resolves with remediation plan.",
+  "instructions": "Monitor devops-vsp-sample-app for DB errors, run RCA with Mistral, create SNOW ticket, and auto-resolve.",
+  "context_config": {
+    "container_name": "devops-vsp-sample-app",
+    "jenkins_job": "devops-vsp-pipeline",
+    "github_repo": "shakilmunavary/devops-vsp-sample-app",
+    "snow_urgency": "2"
+  },
+  "tools_required": [
+    "servicenow"
+  ],
+  "created_at": "2026-08-30 11:35:01",
+  "run_count": 1,
+  "last_run": "2026-08-30 11:35:01",
+  "last_status": "incident_resolved"
+}
