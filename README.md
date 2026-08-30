@@ -407,13 +407,8 @@ chmod +x start.sh stop.sh
 
 ---
 
-## 🤝 Contributing
-Contributions are welcome! Please open an issue or submit a Pull Request on [GitHub](https://github.com/shakilmunavary/ai-mcp-builder).
-
----
-
 ## 📜 License
-Distributed under the **MIT License**. See `LICENSE` for details.
+Please reach out shakil.ahamed@gmail.com for more details.
 
 ---
 
