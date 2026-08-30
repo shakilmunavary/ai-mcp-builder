@@ -846,6 +846,106 @@
           }
         }
       ]
+    },
+    "docker": {
+      "id": "docker",
+      "name": "Docker Engine Management",
+      "description": "Comprehensive container lifecycle management, live log inspection, container restart/start/stop, image listing and automated cache/layer pruning over MCP protocol.",
+      "category": "Containerization & Infrastructure",
+      "transport": "stdio",
+      "command": "python3",
+      "args": [
+        "mcp_servers/docker/server.py"
+      ],
+      "created_at": "2026-08-30 10:50:00",
+      "all_tools": [
+        {
+          "name": "list_containers",
+          "description": "List all Docker containers (running and stopped) with status, ports, and names.",
+          "params": {
+            "all": "boolean (optional) - Show all containers (default: true)"
+          },
+          "sample_args": {
+            "all": true
+          }
+        },
+        {
+          "name": "get_container_logs",
+          "description": "Fetch live or historical stdout/stderr logs from a specific Docker container.",
+          "params": {
+            "container_name": "string (required) - Name or ID of the container",
+            "tail": "integer (optional) - Number of lines from the end of the logs"
+          },
+          "sample_args": {
+            "container_name": "devops-vsp-sample-app",
+            "tail": 50
+          }
+        },
+        {
+          "name": "restart_container",
+          "description": "Restart a running or stopped Docker container.",
+          "params": {
+            "container_name": "string (required) - Name or ID of the container to restart"
+          },
+          "sample_args": {
+            "container_name": "devops-vsp-sample-app"
+          }
+        },
+        {
+          "name": "start_container",
+          "description": "Start a stopped Docker container.",
+          "params": {
+            "container_name": "string (required) - Name or ID of the container to start"
+          },
+          "sample_args": {
+            "container_name": "devops-vsp-sample-app"
+          }
+        },
+        {
+          "name": "stop_container",
+          "description": "Stop a running Docker container.",
+          "params": {
+            "container_name": "string (required) - Name or ID of the container to stop",
+            "timeout": "integer (optional) - Seconds to wait before stopping"
+          },
+          "sample_args": {
+            "container_name": "devops-vsp-sample-app",
+            "timeout": 10
+          }
+        },
+        {
+          "name": "inspect_container",
+          "description": "Retrieve detailed JSON inspection metadata for a container.",
+          "params": {
+            "container_name": "string (required) - Name or ID of the container"
+          },
+          "sample_args": {
+            "container_name": "devops-vsp-sample-app"
+          }
+        },
+        {
+          "name": "list_images",
+          "description": "List all Docker images available locally on the host.",
+          "params": {},
+          "sample_args": {}
+        },
+        {
+          "name": "prune_images",
+          "description": "Remove unused, dangling, and unreferenced Docker images to reclaim disk space.",
+          "params": {
+            "all": "boolean (optional) - Remove all unused images"
+          },
+          "sample_args": {
+            "all": false
+          }
+        },
+        {
+          "name": "get_docker_system_info",
+          "description": "Display host-wide Docker system information.",
+          "params": {},
+          "sample_args": {}
+        }
+      ]
     }
   }
 }
