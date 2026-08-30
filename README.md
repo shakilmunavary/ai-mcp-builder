@@ -171,8 +171,6 @@ sequenceDiagram
 ### 1. 📊 AI DevOps Value Stream Portal Dashboard
 *The central command center displaying connected MCP servers (**Docker**, **GitHub**, **Jenkins**, **ServiceNow**), active transports, live Gateway endpoint routes, credential vaults, and tool function schemas with instant cURL test commands:*
 
-[![AI DevOps Value Stream Portal Dashboard](docs/images/01_portal_mcp_servers.png)](docs/images/01_portal_mcp_servers.png)
-
 <img width="1885" height="903" alt="image" src="https://github.com/user-attachments/assets/00263c51-1c5e-4306-b61c-639479df8c90" />
 
 ---
@@ -187,56 +185,65 @@ sequenceDiagram
 ### 3. ⚡ Automated Tool Synthesis & Schema Generation
 *Mistral AI analyzes platform specifications and automatically synthesizes functional tools (Query, Action, Monitoring, Admin) with complete parameter definitions and toggle controls:*
 
-[![Jenkins Tools Synthesized](docs/images/03_jenkins_tools_synthesized.png)](docs/images/03_jenkins_tools_synthesized.png)
+<img width="1894" height="898" alt="image" src="https://github.com/user-attachments/assets/f7c4679e-bfd0-430b-843e-6af0bcf6b5c6" />
 
 ---
 
 ### 4. 🚀 1-Click FastMCP Deployment & Credential Vault Setup
 *Reviewing generated parameters, auto-configuring `.env` credentials, and deploying the newly generated FastMCP server directly onto the live Gateway (:5001):*
 
-[![Deploy FastMCP Server](docs/images/04_deploy_fastmcp_server.png)](docs/images/04_deploy_fastmcp_server.png)
+<img width="1873" height="870" alt="image" src="https://github.com/user-attachments/assets/4ed37819-6d2b-4cb3-968e-635ff5a8993d" />
+
+<img width="1844" height="878" alt="image" src="https://github.com/user-attachments/assets/04f853ac-487b-4756-8549-4d71f4c5d128" />
 
 ---
 
 ### 5. 🔑 Secure Mistral AI Configuration
 *Configuring enterprise LLM credentials securely to empower interactive bot synthesis and precision Root Cause Analysis:*
 
-[![Mistral AI API Key Configuration](docs/images/05_mistral_key_config.png)](docs/images/05_mistral_key_config.png)
+<img width="1879" height="848" alt="image" src="https://github.com/user-attachments/assets/0c2f208a-d894-4fb6-b52f-5ae92e7daa0e" />
+
+<img width="1495" height="771" alt="image" src="https://github.com/user-attachments/assets/547c5803-995c-4291-8763-d1cc15aed684" />
 
 ---
 
 ### 6. 💬 Platform AI Assistant in Action (Real-Time MCP Query)
 *Interacting with the universal conversational assistant to inspect live container status and runtime diagnostics via the Docker MCP driver:*
 
-[![Platform AI Assistant Chat](docs/images/06_platform_assistant_chat.png)](docs/images/06_platform_assistant_chat.png)
+<img width="1818" height="879" alt="image" src="https://github.com/user-attachments/assets/ff5af168-2e2c-46df-b5af-e2c1a0f1a4af" />
+
 
 ---
 
 ### 7. 🤖 DevOps Autonomous Bots Fleet Dashboard
 *Monitoring active autonomous watchdogs, executed workflow counters, registered SRE bots, and one-click execution controls:*
 
-[![DevOps Autonomous Bots Dashboard](docs/images/07_autonomous_bots_dashboard.png)](docs/images/07_autonomous_bots_dashboard.png)
+<img width="1903" height="685" alt="image" src="https://github.com/user-attachments/assets/4b5ad5ff-d30e-4b88-a999-3be931da24fe" />
+
 
 ---
 
 ### 8. 📜 Real-Time Execution Telemetry & Health Checks
 *Live execution modal tracking continuous background health checks, container log inspection, error signature isolation, and AI RCA reports:*
 
-[![Bot Execution Telemetry](docs/images/08_bot_execution_telemetry.png)](docs/images/08_bot_execution_telemetry.png)
+<img width="1880" height="858" alt="image" src="https://github.com/user-attachments/assets/86905d62-e454-4e8c-a179-b1e20cd4436e" />
 
 ---
 
 ### 9. 🧠 Interactive AI Bot Builder (Discovery & Validation)
 *Building brand new autonomous SRE workflows through conversational discovery and live MCP tool capability validation:*
 
-[![Interactive AI Bot Architect Modal](docs/images/09_bot_architect_modal.png)](docs/images/09_bot_architect_modal.png)
+<img width="1824" height="873" alt="image" src="https://github.com/user-attachments/assets/9af72e79-5f50-4d59-8f8e-cf09f9c3e537" />
+
+<img width="1599" height="852" alt="image" src="https://github.com/user-attachments/assets/69a6aabb-2b78-4dc8-950d-61a4ad1b48fc" />
 
 ---
 
 ### 10. 🎯 Live MCP Capabilities Validation & Bot Blueprint
 *Validating live MCP tool requirements across Docker, ServiceNow, Jenkins, and GitHub, and synthesizing the live blueprint:*
 
-[![Live Capabilities Validation](docs/images/10_bot_architect_validation_blueprint.png)](docs/images/10_bot_architect_validation_blueprint.png)
+<img width="1293" height="825" alt="image" src="https://github.com/user-attachments/assets/2b6d4330-71c2-4c51-ac29-945ad968f4f9" />
+
 
 ---
 
@@ -250,7 +257,8 @@ sequenceDiagram
 ### 12. 📋 Live ServiceNow Incident Record (`INC0010063`) Enriched with RCA
 *ServiceNow incident ticket automatically created, populated with initial triage notice, enriched with Mistral RCA in `work_notes`, and marked **Resolved** (`state: 6`):*
 
-[![ServiceNow Incident Resolved](docs/images/12_servicenow_incident_resolved.png)](docs/images/12_servicenow_incident_resolved.png)
+<img width="1630" height="846" alt="image" src="https://github.com/user-attachments/assets/0193d897-b452-466d-a9e3-734fa449bfb2" />
+
 
 ---
 
