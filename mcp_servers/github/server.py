@@ -47,6 +47,7 @@ def get_github_credentials() -> Dict[str, str]:
         "https://api.github.com"
     )
     org = (
+        os.environ.get("ORGANIZATION") or
         os.environ.get("GITHUB_ORG") or
         os.environ.get("ORG") or
         os.environ.get("GITHUB_USERNAME") or
@@ -54,6 +55,7 @@ def get_github_credentials() -> Dict[str, str]:
         ""
     )
     token = (
+        os.environ.get("ACCESS_TOKEN") or
         os.environ.get("GITHUB_TOKEN") or
         os.environ.get("GITHUB_PAT") or
         os.environ.get("TOKEN") or
