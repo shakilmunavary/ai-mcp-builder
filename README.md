@@ -1,4 +1,4 @@
-# 🌐 AI DevOps Value Stream Portal
+# 🌐 DevOps Value Stream Portal with AI Agentarium
 ### *The Universal Platform for Building MCP Servers & Deploying Autonomous AI Agents On-The-Fly*
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
