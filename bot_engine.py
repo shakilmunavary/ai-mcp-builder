@@ -43,32 +43,8 @@ class BotRegistry:
         return os.path.join(self.bots_dir, safe_id)
 
     def _ensure_init(self):
-        # Seed default SRE Watchdog bot if no bot folders exist
-        existing_bots = [d for d in os.listdir(self.bots_dir) if os.path.isdir(os.path.join(self.bots_dir, d))]
-        if not existing_bots:
-            default_bot = {
-                "id": "java_container_sre_watchdog",
-                "name": "Java Container SRE Watchdog",
-                "description": "Monitors Docker logs for devops-vsp-sample-app, performs AI Root Cause Analysis (RCA), creates ServiceNow tickets, and auto-resolves with remediation plan.",
-                "category": "SRE & Incident Automation",
-                "status": "active",
-                "trigger_type": "interval",
-                "interval_seconds": 120,
-                "instructions": "1. Monitor container 'devops-vsp-sample-app' logs for 'ERROR' or exceptions\n2. Verify deduplication against active open ServiceNow incidents\n3. Perform Mistral AI RCA from error snippet\n4. Create ServiceNow ticket and update with RCA findings\n5. Auto-resolve/close the ticket",
-                "context_config": {
-                    "container_name": "devops-vsp-sample-app",
-                    "github_repo": "shakilmunavary/devops-vsp-sample-app",
-                    "jenkins_job": "devops-vsp-pipeline",
-                    "snow_urgency": "2",
-                    "snow_impact": "2"
-                },
-                "tools_required": ["servicenow", "github", "jenkins"],
-                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "last_run": None,
-                "last_status": "ready",
-                "run_count": 0
-            }
-            self.create_or_update_bot(default_bot)
+        # Only create the mcp_bots directory. Never auto-seed default bots.
+        os.makedirs(self.bots_dir, exist_ok=True)
 
     def list_bots(self) -> Dict[str, Any]:
         """Loads all bot profiles from their individual folders."""
