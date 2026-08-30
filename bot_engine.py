@@ -302,7 +302,8 @@ def extract_stripped_error_log(raw_logs: str) -> Optional[str]:
     error_patterns = [
         r'\bERROR\b', r'\bFATAL\b', r'\bException\b', r'\bSqlExceptionHelper\b',
         r'DataIntegrityViolationException', r'JdbcSQLDataException',
-        r'NullPointerException', r'TimeoutException', r'SQL Error:', r'Caused by:'
+        r'NullPointerException', r'TimeoutException', r'SQL Error:', r'Caused by:',
+        r'Request processing failed', r'Servlet\.service\(\)'
     ]
 
     for idx, line in enumerate(lines):
@@ -312,13 +313,13 @@ def extract_stripped_error_log(raw_logs: str) -> Optional[str]:
     if not error_indices:
         return None
 
-    # Focus around the primary error clusters (take 4 lines context before first error to 35 lines after)
-    first_err = max(0, error_indices[0] - 4)
-    last_err = min(len(lines), error_indices[-1] + 30)
+    # Focus around the primary error clusters (take 6 lines context before first error to 40 lines after)
+    first_err = max(0, error_indices[0] - 6)
+    last_err = min(len(lines), error_indices[-1] + 35)
 
     extracted_chunk = lines[first_err:last_err]
-    if len(extracted_chunk) > 60:
-        extracted_chunk = extracted_chunk[:60]
+    if len(extracted_chunk) > 75:
+        extracted_chunk = extracted_chunk[:75]
 
     error_text = "\n".join(extracted_chunk).strip()
 
@@ -341,15 +342,15 @@ def mark_error_processed(error_text: str):
 def fetch_container_logs(container_name: str) -> str:
     """
     Reads recent container logs directly from Docker (local host and WSL).
-    Limits to recent tail to avoid pulling ancient historical logs after a restart.
+    Fetches up to 350 recent lines to capture full Java stack traces and SQL error headers.
     """
-    # 1. Direct docker CLI (recent 100 lines)
+    # 1. Direct docker CLI (recent 350 lines)
     try:
         proc = subprocess.run(
-            ["docker", "logs", "--tail", "100", container_name],
+            ["docker", "logs", "--tail", "350", container_name],
             capture_output=True,
             text=True,
-            timeout=5.0
+            timeout=6.0
         )
         if proc.returncode == 0 and proc.stdout.strip():
             return proc.stdout
@@ -359,10 +360,10 @@ def fetch_container_logs(container_name: str) -> str:
     # 2. WSL Ubuntu docker CLI
     try:
         proc = subprocess.run(
-            ["wsl.exe", "-d", "Ubuntu", "-e", "docker", "logs", "--tail", "100", container_name],
+            ["wsl.exe", "-d", "Ubuntu", "-e", "docker", "logs", "--tail", "350", container_name],
             capture_output=True,
             text=True,
-            timeout=5.0
+            timeout=6.0
         )
         if proc.returncode == 0 and proc.stdout.strip():
             return proc.stdout

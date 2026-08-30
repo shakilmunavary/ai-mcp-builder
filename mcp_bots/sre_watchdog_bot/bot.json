@@ -1,0 +1,70 @@
+{
+  "category": "SRE & Incident Automation",
+  "context_config": {
+    "container_name": "devops-vsp-sample-app",
+    "github_repo": "shakilmunavary/devops-vsp-sample-app",
+    "jenkins_job": "devops-vsp-pipeline",
+    "snow_urgency": "2"
+  },
+  "description": "An autonomous SRE watchdog bot that monitors container logs, performs incident deduplication, creates ServiceNow incidents, performs RCA using Mistral AI, and closes/resolves incidents.",
+  "id": "sre_watchdog_bot",
+  "instructions": "Build an autonomous SRE watchdog bot with the following workflow: 1. Target Container: Monitor logs for container 'devops-vsp-sample-app' for ERROR or EXCEPTION. 2. Error Extraction: When an error is detected, strip and isolate only the specific error log block and stack trace. 3. Incident Deduplication: Query ServiceNow for any active open incident with short description containing 'Application devops-vsp-sample-app Error'. If an open ticket already exists, skip ticket creation. 4. Ticket Creation: If no open ticket exists, create a ServiceNow incident with: - short_description: \"Application devops-vsp-sample-app Error\" - work_notes: \"SRE AI agent is analyzing the issue.\\n\\n=== STRIPPED ERROR LOG ===\\n\" + stripped error - urgency: \"2\", impact: \"2\" 5. RCA Diagnostics: Send the stripped error log along with Jenkins job 'devops-vsp-pipeline' and GitHub repo 'https://github.com/shakilmunavary/devops-vsp-sample-app.git' to Mistral AI to perform a Root Cause Analysis (RCA). 6. Worker Notes & Closure: Update the same ServiceNow ticket's work_notes with the full Mistral RCA findings (Root Cause, Affected Component, Recommended Fix) and close/resolve the incident (state: 6, close_code: \"Solution Provided\"). 7. Continuous Schedule: Review logs every 5 seconds.",
+  "interval_seconds": 5,
+  "name": "SRE Watchdog Bot",
+  "status": "active",
+  "tools_required": [
+    "servicenow",
+    "jenkins",
+    "github"
+  ],
+  "trigger_type": "interval",
+  "workflow_code": "import json\nimport requests\n\ndef execute_workflow(context: dict) -> dict:\n    # Step 1: Strip and inspect container errors\n    log_inspector_response = requests.post(\n        \"http://localhost:5001/mcp/system\",\n        json={\n            \"jsonrpc\": \"2.0\",\n            \"method\": \"log_inspector\",\n            \"params\": {\n                \"container_name\": context.get(\"container_name\", \"devops-vsp-sample-app\"),\n                \"error_signatures\": [\"ERROR\", \"EXCEPTION\"]\n            },\n            \"id\": 1\n        }\n    ).json()\n    \n    if \"error\" in log_inspector_response:\n        return {\n            \"status\": \"error\",\n            \"summary\": \"Failed to inspect container logs\",\n            \"steps\": [\"Step 1: Strip and inspect container errors\"],\n            \"rca\": {}\n        }\n    \n    stripped_error = log_inspector_response.get(\"result\", {}).get(\"stripped_error\", \"\")\n    \n    # Step 2: Check ServiceNow incident deduplication\n    dedup_checker_response = requests.post(\n        \"http://localhost:5001/mcp/system\",\n        json={\n            \"jsonrpc\": \"2.0\",\n            \"method\": \"dedup_checker\",\n            \"params\": {\n                \"short_description\": \"Application devops-vsp-sample-app Error\"\n            },\n            \"id\": 2\n        }\n    ).json()\n    \n    if \"error\" in dedup_checker_response:\n        return {\n            \"status\": \"error\",\n            \"summary\": \"Failed to check ServiceNow incident deduplication\",\n            \"steps\": [\"Step 1: Strip and inspect container errors\", \"Step 2: Check ServiceNow incident deduplication\"],\n            \"rca\": {}\n        }\n    \n    if dedup_checker_response.get(\"result\", {}).get(\"is_duplicate\", False):\n        return {\n            \"status\": \"deduplicated\",\n            \"summary\": \"Incident deduplicated\",\n            \"steps\": [\"Step 1: Strip and inspect container errors\", \"Step 2: Check ServiceNow incident deduplication\"],\n            \"rca\": {}\n        }\n    \n    # Step 3: Correlate with Jenkins pipeline\n    jenkins_response = requests.post(\n        \"http://localhost:5001/mcp/jenkins\",\n        json={\n            \"jsonrpc\": \"2.0\",\n            \"method\": \"get_job_details\",\n            \"params\": {\n                \"job_name\": context.get(\"jenkins_job\", \"devops-vsp-pipeline\")\n            },\n            \"id\": 3\n        }\n    ).json()\n    \n    if \"error\" in jenkins_response:\n        return {\n            \"status\": \"error\",\n            \"summary\": \"Failed to correlate with Jenkins pipeline\",\n            \"steps\": [\"Step 1: Strip and inspect container errors\", \"Step 2: Check ServiceNow incident deduplication\", \"Step 3: Correlate with Jenkins pipeline\"],\n            \"rca\": {}\n        }\n    \n    # Step 4: Correlate with GitHub repository\n    github_response = requests.post(\n        \"http://localhost:5001/mcp/github\",\n        json={\n            \"jsonrpc\": \"2.0\",\n            \"method\": \"get_repository\",\n            \"params\": {\n                \"repo_name\": context.get(\"github_repo\", \"shakilmunavary/devops-vsp-sample-app\")\n            },\n            \"id\": 4\n        }\n    ).json()\n    \n    if \"error\" in github_response:\n        return {\n            \"status\": \"error\",\n            \"summary\": \"Failed to correlate with GitHub repository\",\n            \"steps\": [\"Step 1: Strip and inspect container errors\", \"Step 2: Check ServiceNow incident deduplication\", \"Step 3: Correlate with Jenkins pipeline\", \"Step 4: Correlate with GitHub repository\"],\n            \"rca\": {}\n        }\n    \n    # Step 5: Diagnose failure with Mistral AI RCA\n    ai_rca_response = requests.post(\n        \"http://localhost:5001/mcp/system\",\n        json={\n            \"jsonrpc\": \"2.0\",\n            \"method\": \"ai_rca\",\n            \"params\": {\n                \"error_log\": stripped_error,\n                \"jenkins_job\": context.get(\"jenkins_job\", \"devops-vsp-pipeline\"),\n                \"github_repo\": context.get(\"github_repo\", \"shakilmunavary/devops-vsp-sample-app\")\n            },\n            \"id\": 5\n        }\n    ).json()\n    \n    if \"error\" in ai_rca_response:\n        return {\n            \"status\": \"error\",\n            \"summary\": \"Failed to diagnose failure with Mistral AI RCA\",\n            \"steps\": [\"Step 1: Strip and inspect container errors\", \"Step 2: Check ServiceNow incident deduplication\", \"Step 3: Correlate with Jenkins pipeline\", \"Step 4: Correlate with GitHub repository\", \"Step 5: Diagnose failure with Mistral AI RCA\"],\n            \"rca\": {}\n        }\n    \n    rca_result = ai_rca_response.get(\"result\", {})\n    \n    # Step 6: Create ServiceNow Incident with stripped error\n    create_incident_response = requests.post(\n        \"http://localhost:5001/mcp/servicenow\",\n        json={\n            \"jsonrpc\": \"2.0\",\n            \"method\": \"create_incident\",\n            \"params\": {\n                \"short_description\": \"Application devops-vsp-sample-app Error\",\n                \"work_notes\": f\"SRE AI agent is analyzing the issue.\\n\\n=== STRIPPED ERROR LOG ===\\n{stripped_error}\",\n                \"urgency\": context.get(\"snow_urgency\", \"2\"),\n                \"impact\": \"2\"\n            },\n            \"id\": 6\n        }\n    ).json()\n    \n    if \"error\" in create_incident_response:\n        return {\n            \"status\": \"error\",\n            \"summary\": \"Failed to create ServiceNow incident\",\n            \"steps\": [\"Step 1: Strip and inspect container errors\", \"Step 2: Check ServiceNow incident deduplication\", \"Step 3: Correlate with Jenkins pipeline\", \"Step 4: Correlate with GitHub repository\", \"Step 5: Diagnose failure with Mistral AI RCA\", \"Step 6: Create ServiceNow Incident with stripped error\"],\n            \"rca\": {}\n        }\n    \n    incident_number = create_incident_response.get(\"result\", {}).get(\"incident_number\", \"\")\n    \n    # Step 7: Enrich ticket with RCA & Auto-Resolve\n    update_incident_response = requests.post(\n        \"http://localhost:5001/mcp/servicenow\",\n        json={\n            \"jsonrpc\": \"2.0\",\n            \"method\": \"update_incident\",\n            \"params\": {\n                \"incident_number\": incident_number,\n                \"work_notes\": f\"Root Cause: {rca_result.get('root_cause', '')}\\nAffected Component: {rca_result.get('affected_component', '')}\\nRecommended Fix: {rca_result.get('recommended_fix', '')}\",\n                \"state\": \"6\",\n                \"close_code\": \"Solution Provided\"\n            },\n            \"id\": 7\n        }\n    ).json()\n    \n    if \"error\" in update_incident_response:\n        return {\n            \"status\": \"error\",\n            \"summary\": \"Failed to update ServiceNow incident\",\n            \"steps\": [\"Step 1: Strip and inspect container errors\", \"Step 2: Check ServiceNow incident deduplication\", \"Step 3: Correlate with Jenkins pipeline\", \"Step 4: Correlate with GitHub repository\", \"Step 5: Diagnose failure with Mistral AI RCA\", \"Step 6: Create ServiceNow Incident with stripped error\", \"Step 7: Enrich ticket with RCA & Auto-Resolve\"],\n            \"rca\": {}\n        }\n    \n    return {\n        \"status\": \"incident_resolved\",\n        \"summary\": \"Incident resolved\",\n        \"steps\": [\"Step 1: Strip and inspect container errors\", \"Step 2: Check ServiceNow incident deduplication\", \"Step 3: Correlate with Jenkins pipeline\", \"Step 4: Correlate with GitHub repository\", \"Step 5: Diagnose failure with Mistral AI RCA\", \"Step 6: Create ServiceNow Incident with stripped error\", \"Step 7: Enrich ticket with RCA & Auto-Resolve\"],\n        \"rca\": rca_result\n    }\n\nif __name__ == '__main__':\n    result = execute_workflow({})\n    print(json.dumps(result, indent=2))",
+  "workflow_steps": [
+    {
+      "action": "Strip and inspect container errors",
+      "server": "system",
+      "step": 1,
+      "tool": "log_inspector"
+    },
+    {
+      "action": "Check ServiceNow incident deduplication",
+      "server": "system",
+      "step": 2,
+      "tool": "dedup_checker"
+    },
+    {
+      "action": "Correlate with Jenkins pipeline",
+      "server": "jenkins",
+      "step": 3,
+      "tool": "get_job_details"
+    },
+    {
+      "action": "Correlate with GitHub repository",
+      "server": "github",
+      "step": 4,
+      "tool": "get_repository"
+    },
+    {
+      "action": "Diagnose failure with Mistral AI RCA",
+      "server": "system",
+      "step": 5,
+      "tool": "ai_rca"
+    },
+    {
+      "action": "Create ServiceNow Incident with stripped error",
+      "server": "servicenow",
+      "step": 6,
+      "tool": "create_incident"
+    },
+    {
+      "action": "Enrich ticket with RCA & Auto-Resolve",
+      "server": "servicenow",
+      "step": 7,
+      "tool": "update_incident"
+    }
+  ],
+  "created_at": "2026-08-30 08:26:29",
+  "run_count": 40,
+  "last_run": "2026-08-30 08:32:30",
+  "last_status": "healthy"
+}
