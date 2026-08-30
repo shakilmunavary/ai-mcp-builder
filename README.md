@@ -15,7 +15,7 @@
 1. [🌟 Executive Summary & Vision](#-executive-summary--vision)
 2. [📐 System Architecture & Data Flow](#-system-architecture--data-flow)
 3. [🚀 Key Features & Capabilities](#-key-features--capabilities)
-4. [🖼️ Visual Walkthrough & Screenshots](#️-visual-walkthrough--screenshots)
+4. [🖼️ Visual Walkthrough & System Tour](#️-visual-walkthrough--system-tour)
 5. [🔬 Case Study: Autonomous Incident Detection, RCA & Self-Healing](#-case-study-autonomous-incident-detection-rca--self-healing)
 6. [💻 Installation & Quickstart](#-installation--quickstart)
 7. [⚙️ Configuration & Environment Setup](#️-configuration--environment-setup)
@@ -112,10 +112,10 @@ flowchart TD
 
 ---
 
-## 🖼️ Visual Walkthrough & Screenshots
+## 🖼️ Visual Walkthrough & System Tour
 
-### 1. 📊 AI DevOps Value Stream Portal & Connected MCP Servers
-*The unified Web UI displaying connected MCP servers (**Docker**, **GitHub**, **Jenkins**, **ServiceNow**), active transport endpoints, credential vaults, and function explorer with instant cURL test snippets.*
+### 1. 📊 AI DevOps Value Stream Portal Dashboard
+*The central command center displaying connected MCP servers (**Docker**, **GitHub**, **Jenkins**, **ServiceNow**), active transports, live Gateway endpoint routes, credential vaults, and tool function schemas with instant cURL test commands:*
 
 <p align="center">
   <img src="docs/images/01_portal_mcp_servers.png" alt="AI DevOps Value Stream Portal Dashboard" width="95%" />
@@ -124,7 +124,7 @@ flowchart TD
 ---
 
 ### 2. 🤖 Interactive Conversational MCP Server Architect
-*Prompting Mistral AI interactively to scaffold custom MCP server suites (e.g., Jenkins CI/CD, AWS, Kubernetes) with natural language:*
+*Prompting Mistral AI interactively to scaffold custom enterprise MCP server suites with natural language:*
 
 <p align="center">
   <img src="docs/images/02_interactive_architect_prompt.png" alt="Interactive MCP Architect Prompt" width="90%" />
@@ -150,23 +150,48 @@ flowchart TD
 
 ---
 
-### 5. ⚡ Autonomous SRE Bot Telemetry & Mistral RCA
-*Live execution telemetry showing multi-step autonomous incident handling: error detection, SHA-256 deduplication, GitHub/Jenkins correlation, and structured AI RCA generation:*
+### 5. 🔑 Secure Mistral AI Configuration
+*Configuring enterprise LLM credentials securely to empower interactive bot synthesis and precision Root Cause Analysis:*
 
-```markdown
-![Execution Telemetry](docs/images/05_execution_telemetry.png)
-```
-*(Screenshot 5: Autonomous SRE bot execution cards with step-by-step progress, timestamps, and formatted RCA report)*
+<p align="center">
+  <img src="docs/images/05_mistral_key_config.png" alt="Mistral AI API Key Configuration" width="80%" />
+</p>
 
 ---
 
-### 6. 📋 ServiceNow Incident Creation & Work Notes Auto-Resolution
-*Automated incident lifecycle in ServiceNow with initial triage notice and subsequent Mistral RCA markdown appended to work notes:*
+### 6. 💬 Platform AI Assistant in Action (Real-Time MCP Query)
+*Interacting with the universal conversational assistant to inspect live container status and runtime diagnostics via the Docker MCP driver:*
 
-```markdown
-![ServiceNow Incident](docs/images/06_servicenow_incident.png)
-```
-*(Screenshot 6: ServiceNow incident view displaying short description, state: Resolved, and enriched work notes)*
+<p align="center">
+  <img src="docs/images/06_platform_assistant_chat.png" alt="Platform AI Assistant Chat" width="90%" />
+</p>
+
+---
+
+### 7. 🤖 Autonomous Bots Dashboard
+*Monitoring active autonomous watchdogs, executed workflow counters, registered SRE bots, and one-click execution controls:*
+
+<p align="center">
+  <img src="docs/images/07_autonomous_bots_dashboard.png" alt="DevOps Autonomous Bots Dashboard" width="95%" />
+</p>
+
+---
+
+### 8. 📜 Real-Time Execution Telemetry & Health Checks
+*Live execution modal tracking continuous background health checks, container log inspection, error signature isolation, and AI RCA reports:*
+
+<p align="center">
+  <img src="docs/images/08_bot_execution_telemetry.png" alt="Bot Execution Telemetry" width="90%" />
+</p>
+
+---
+
+### 9. 🧠 Interactive AI Bot Builder (Discovery & Validation)
+*Building brand new autonomous SRE workflows through conversational discovery and live MCP tool capability validation:*
+
+<p align="center">
+  <img src="docs/images/09_bot_architect_modal.png" alt="Interactive AI Bot Architect Modal" width="90%" />
+</p>
 
 ---
 
