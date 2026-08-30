@@ -426,6 +426,37 @@ def evaluate_server_health(platform_id: str, server_script: str, tools: list) ->
     if username:
         endpoint = endpoint.replace("{username}", username).replace("{user}", username)
 
+    # Handle UNIX domain sockets (e.g. Docker unix:///var/run/docker.sock)
+    if base_url.startswith("unix://") or "docker" in platform_id.lower():
+        sock_path = base_url.replace("unix://", "").strip() or "/var/run/docker.sock"
+        if os.path.exists(sock_path):
+            try:
+                transport = httpx.HTTPTransport(uds=sock_path)
+                with httpx.Client(transport=transport, base_url="http://docker", timeout=8.0) as client:
+                    probe_ep = endpoint if endpoint.startswith("/") else f"/{endpoint}"
+                    if not probe_ep or probe_ep == "/status":
+                        probe_ep = "/version"
+                    res = client.get(probe_ep)
+                    if res.status_code in [200, 201, 204]:
+                        return {
+                            "passed": True,
+                            "probe": probe_name,
+                            "preview": f"HTTP {res.status_code} OK (Docker Socket): {res.text[:300]}"
+                        }
+            except Exception:
+                pass
+        # Fallback to local docker CLI test
+        try:
+            d_proc = subprocess.run(["docker", "info"], capture_output=True, text=True, timeout=5)
+            if d_proc.returncode == 0:
+                return {
+                    "passed": True,
+                    "probe": probe_name,
+                    "preview": "Docker Daemon Active (Verified via Docker CLI)"
+                }
+        except Exception:
+            pass
+
     # Build full probe URL
     if endpoint.startswith("http://") or endpoint.startswith("https://"):
         probe_url = endpoint
