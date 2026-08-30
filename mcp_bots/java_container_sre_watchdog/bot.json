@@ -1,0 +1,26 @@
+{
+  "id": "java_container_sre_watchdog",
+  "name": "Java Container SRE Watchdog",
+  "description": "Monitors Docker logs for devops-vsp-sample-app, performs AI Root Cause Analysis (RCA), creates ServiceNow tickets, and auto-resolves with remediation plan.",
+  "category": "SRE & Incident Automation",
+  "status": "active",
+  "trigger_type": "interval",
+  "interval_seconds": 120,
+  "instructions": "1. Monitor container 'devops-vsp-sample-app' logs for 'ERROR' or exceptions\n2. Verify deduplication against active open ServiceNow incidents\n3. Perform Mistral AI RCA from error snippet\n4. Create ServiceNow ticket and update with RCA findings\n5. Auto-resolve/close the ticket",
+  "context_config": {
+    "container_name": "devops-vsp-sample-app",
+    "github_repo": "shakilmunavary/devops-vsp-sample-app",
+    "jenkins_job": "devops-vsp-pipeline",
+    "snow_urgency": "2",
+    "snow_impact": "2"
+  },
+  "tools_required": [
+    "servicenow",
+    "github",
+    "jenkins"
+  ],
+  "created_at": "2026-08-30 10:42:46",
+  "last_run": null,
+  "last_status": "ready",
+  "run_count": 0
+}

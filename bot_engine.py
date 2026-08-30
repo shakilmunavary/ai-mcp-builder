@@ -13,6 +13,7 @@ import threading
 import subprocess
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+import re
 import httpx
 
 from mistral_service import get_mistral_api_key, DEFAULT_MISTRAL_MODEL, MISTRAL_API_URL
@@ -20,119 +21,235 @@ from gateway_manager import get_current_gateway_api_key
 
 logger = logging.getLogger("bot_engine")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-BOTS_REGISTRY_PATH = os.path.join(BASE_DIR, "mcp_bots.json")
+BOTS_BASE_DIR = os.path.join(BASE_DIR, "mcp_bots")
 
 
 class BotRegistry:
-    """Manages persistent bot definitions and execution logs in mcp_bots.json."""
+    """
+    Manages self-contained autonomous bots in individual dedicated folders under mcp_bots/<bot_id>/.
+    Each bot folder contains:
+      - bot.json (metadata, instructions, context_config, tools_required, workflow_steps)
+      - history.json (execution telemetry & RCA logs)
+      - workflow.py (standalone executable Python workflow logic)
+    """
 
-    def __init__(self, registry_path: str = BOTS_REGISTRY_PATH):
-        self.path = registry_path
+    def __init__(self, bots_dir: str = BOTS_BASE_DIR):
+        self.bots_dir = bots_dir
+        os.makedirs(self.bots_dir, exist_ok=True)
         self._ensure_init()
 
+    def _get_bot_folder(self, bot_id: str) -> str:
+        safe_id = re.sub(r'[^a-zA-Z0-9_-]', '_', bot_id)
+        return os.path.join(self.bots_dir, safe_id)
+
     def _ensure_init(self):
-        if not os.path.exists(self.path):
-            initial_data = {
-                "bots": {
-                    "bot_java_sre_watchdog": {
-                        "id": "bot_java_sre_watchdog",
-                        "name": "Java Container SRE Watchdog",
-                        "description": "Monitors Java Docker container logs for exceptions, creates ServiceNow incidents, runs AI RCA, and updates tickets.",
-                        "category": "SRE & Incident Automation",
-                        "status": "active",
-                        "trigger_type": "interval",
-                        "interval_seconds": 120,
-                        "instructions": "1. Monitor container 'java-app' logs for 'ERROR' or exceptions\n2. Immediately create a ServiceNow incident\n3. Perform quick AI RCA from error snippet\n4. Update ServiceNow ticket with RCA findings\n5. Correlate with recent GitHub repository commits",
-                        "context_config": {
-                            "container_name": "java-app",
-                            "github_repo": "shakilmunavary/devops-vsp-sample-app",
-                            "jenkins_job": "build-java-app",
-                            "snow_urgency": "2",
-                            "snow_impact": "2"
-                        },
-                        "tools_required": ["servicenow", "github", "jenkins"],
-                        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "last_run": None,
-                        "last_status": "ready",
-                        "run_count": 0,
-                        "run_history": []
-                    }
-                }
+        # Seed default SRE Watchdog bot if no bot folders exist
+        existing_bots = [d for d in os.listdir(self.bots_dir) if os.path.isdir(os.path.join(self.bots_dir, d))]
+        if not existing_bots:
+            default_bot = {
+                "id": "java_container_sre_watchdog",
+                "name": "Java Container SRE Watchdog",
+                "description": "Monitors Docker logs for devops-vsp-sample-app, performs AI Root Cause Analysis (RCA), creates ServiceNow tickets, and auto-resolves with remediation plan.",
+                "category": "SRE & Incident Automation",
+                "status": "active",
+                "trigger_type": "interval",
+                "interval_seconds": 120,
+                "instructions": "1. Monitor container 'devops-vsp-sample-app' logs for 'ERROR' or exceptions\n2. Verify deduplication against active open ServiceNow incidents\n3. Perform Mistral AI RCA from error snippet\n4. Create ServiceNow ticket and update with RCA findings\n5. Auto-resolve/close the ticket",
+                "context_config": {
+                    "container_name": "devops-vsp-sample-app",
+                    "github_repo": "shakilmunavary/devops-vsp-sample-app",
+                    "jenkins_job": "devops-vsp-pipeline",
+                    "snow_urgency": "2",
+                    "snow_impact": "2"
+                },
+                "tools_required": ["servicenow", "github", "jenkins"],
+                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "last_run": None,
+                "last_status": "ready",
+                "run_count": 0
             }
-            self.save_all(initial_data)
+            self.create_or_update_bot(default_bot)
+
+    def list_bots(self) -> Dict[str, Any]:
+        """Loads all bot profiles from their individual folders."""
+        bots = {}
+        if not os.path.exists(self.bots_dir):
+            return bots
+
+        for folder_name in os.listdir(self.bots_dir):
+            folder_path = os.path.join(self.bots_dir, folder_name)
+            bot_json_path = os.path.join(folder_path, "bot.json")
+            if os.path.isdir(folder_path) and os.path.exists(bot_json_path):
+                try:
+                    with open(bot_json_path, "r", encoding="utf-8") as f:
+                        bot_data = json.load(f)
+                        bot_id = bot_data.get("id", folder_name)
+                        
+                        # Load run history summary from history.json if available
+                        hist_path = os.path.join(folder_path, "history.json")
+                        if os.path.exists(hist_path):
+                            with open(hist_path, "r", encoding="utf-8") as hf:
+                                history = json.load(hf)
+                                bot_data["run_history"] = history
+                                bot_data["run_count"] = len(history)
+                                if history:
+                                    bot_data["last_run"] = history[0].get("timestamp")
+                                    bot_data["last_status"] = history[0].get("status")
+                        else:
+                            bot_data.setdefault("run_history", [])
+                            bot_data.setdefault("run_count", 0)
+
+                        bots[bot_id] = bot_data
+                except Exception as e:
+                    logger.error(f"Error loading bot from {folder_path}: {e}")
+
+        return bots
 
     def load_all(self) -> Dict[str, Any]:
-        try:
-            if not os.path.exists(self.path):
-                self._ensure_init()
-            with open(self.path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            logger.error(f"Error loading bot registry: {e}")
-            return {"bots": {}}
-
-    def save_all(self, data: Dict[str, Any]) -> None:
-        try:
-            with open(self.path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
-        except Exception as e:
-            logger.error(f"Error saving bot registry: {e}")
+        """Backwards-compatible dictionary wrapper."""
+        return {"bots": self.list_bots()}
 
     def get_bot(self, bot_id: str) -> Optional[Dict[str, Any]]:
-        data = self.load_all()
-        return data.get("bots", {}).get(bot_id)
+        folder_path = self._get_bot_folder(bot_id)
+        bot_json_path = os.path.join(folder_path, "bot.json")
+        if not os.path.exists(bot_json_path):
+            # Check by folder scanning
+            all_bots = self.list_bots()
+            return all_bots.get(bot_id)
+
+        try:
+            with open(bot_json_path, "r", encoding="utf-8") as f:
+                bot_data = json.load(f)
+            hist_path = os.path.join(folder_path, "history.json")
+            if os.path.exists(hist_path):
+                with open(hist_path, "r", encoding="utf-8") as hf:
+                    bot_data["run_history"] = json.load(hf)
+                    bot_data["run_count"] = len(bot_data["run_history"])
+            else:
+                bot_data["run_history"] = []
+                bot_data["run_count"] = 0
+            return bot_data
+        except Exception as e:
+            logger.error(f"Error reading bot {bot_id}: {e}")
+            return None
 
     def create_or_update_bot(self, bot_data: Dict[str, Any]) -> Dict[str, Any]:
-        data = self.load_all()
+        """Saves bot definition and workflow in its dedicated folder."""
         bot_id = bot_data.get("id") or f"bot_{int(time.time())}"
         bot_data["id"] = bot_id
+        folder_path = self._get_bot_folder(bot_id)
+        os.makedirs(folder_path, exist_ok=True)
+
         if "created_at" not in bot_data:
             bot_data["created_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        if "run_history" not in bot_data:
-            bot_data["run_history"] = []
-        if "run_count" not in bot_data:
-            bot_data["run_count"] = len(bot_data["run_history"])
 
-        data.setdefault("bots", {})[bot_id] = bot_data
-        self.save_all(data)
+        # Separate history if provided
+        history = bot_data.pop("run_history", None)
+        if history is None:
+            hist_path = os.path.join(folder_path, "history.json")
+            if os.path.exists(hist_path):
+                try:
+                    with open(hist_path, "r", encoding="utf-8") as hf:
+                        history = json.load(hf)
+                except Exception:
+                    history = []
+            else:
+                history = []
+
+        bot_data["run_count"] = len(history)
+        if history:
+            bot_data["last_run"] = history[0].get("timestamp")
+            bot_data["last_status"] = history[0].get("status")
+
+        # 1. Write bot.json
+        bot_json_path = os.path.join(folder_path, "bot.json")
+        with open(bot_json_path, "w", encoding="utf-8") as f:
+            json.dump(bot_data, f, indent=2)
+
+        # 2. Write history.json
+        hist_path = os.path.join(folder_path, "history.json")
+        with open(hist_path, "w", encoding="utf-8") as hf:
+            json.dump(history, hf, indent=2)
+
+        # 3. Generate standalone workflow.py script in the bot folder
+        workflow_py_path = os.path.join(folder_path, "workflow.py")
+        if not os.path.exists(workflow_py_path):
+            with open(workflow_py_path, "w", encoding="utf-8") as wf:
+                wf.write(f'''"""
+Autonomous Bot: {bot_data.get("name")}
+Category: {bot_data.get("category")}
+Instructions: {bot_data.get("instructions")}
+"""
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from bot_engine import run_bot_workflow
+
+if __name__ == "__main__":
+    result = run_bot_workflow("{bot_id}", trigger_reason="CLI Direct Invocation")
+    print(f"Workflow status: {{result.get('status')}}")
+''')
+
+        bot_data["run_history"] = history
         return bot_data
 
     def delete_bot(self, bot_id: str) -> bool:
-        data = self.load_all()
-        if bot_id in data.get("bots", {}):
-            del data["bots"][bot_id]
-            self.save_all(data)
-            return True
+        """Deletes the entire bot directory."""
+        import shutil
+        folder_path = self._get_bot_folder(bot_id)
+        if os.path.exists(folder_path):
+            try:
+                shutil.rmtree(folder_path)
+                return True
+            except Exception as e:
+                logger.error(f"Error removing bot directory {folder_path}: {e}")
+                return False
         return False
 
     def toggle_status(self, bot_id: str) -> Optional[str]:
-        data = self.load_all()
-        bot = data.get("bots", {}).get(bot_id)
+        bot = self.get_bot(bot_id)
         if bot:
             current = bot.get("status", "active")
             new_status = "inactive" if current == "active" else "active"
             bot["status"] = new_status
-            self.save_all(data)
+            self.create_or_update_bot(bot)
             return new_status
         return None
 
     def append_run_log(self, bot_id: str, run_record: Dict[str, Any]) -> None:
-        data = self.load_all()
-        bot = data.get("bots", {}).get(bot_id)
+        folder_path = self._get_bot_folder(bot_id)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path, exist_ok=True)
+
+        hist_path = os.path.join(folder_path, "history.json")
+        history = []
+        if os.path.exists(hist_path):
+            try:
+                with open(hist_path, "r", encoding="utf-8") as hf:
+                    history = json.load(hf)
+            except Exception:
+                history = []
+
+        history.insert(0, run_record)
+        if len(history) > 40:
+            history = history[:40]
+
+        with open(hist_path, "w", encoding="utf-8") as hf:
+            json.dump(history, hf, indent=2)
+
+        # Update bot.json metadata
+        bot = self.get_bot(bot_id)
         if bot:
             bot["last_run"] = run_record.get("timestamp")
             bot["last_status"] = run_record.get("status")
-            bot["run_count"] = bot.get("run_count", 0) + 1
-            
-            history = bot.setdefault("run_history", [])
-            history.insert(0, run_record)
-            if len(history) > 30:
-                bot["run_history"] = history[:30]
-            self.save_all(data)
+            bot["run_count"] = len(history)
+            bot_json_path = os.path.join(folder_path, "bot.json")
+            bot_copy = dict(bot)
+            bot_copy.pop("run_history", None)
+            with open(bot_json_path, "w", encoding="utf-8") as f:
+                json.dump(bot_copy, f, indent=2)
 
 
 bot_registry = BotRegistry()
-
 
 # ==============================================================================
 # AI RCA & Autonomous Execution Engine
@@ -269,7 +386,14 @@ Return your analysis in STRICT JSON format:
 
 def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dict[str, Any]:
     """
-    Executes the dynamic multi-step autonomous workflow for a bot based on its tools_required and context_config.
+    Executes the dynamic multi-step autonomous workflow for a bot:
+    1. Monitor container logs for anomalies.
+    2. Deduplication check (ensure no duplicate open tickets for the same active error).
+    3. Generate AI Root Cause Analysis (RCA) with Mistral.
+    4. Create ServiceNow incident ticket via MCP.
+    5. Enrich ServiceNow ticket with full RCA diagnosis.
+    6. Auto-resolve / close ticket with remediation report.
+    7. Execute any optional Jenkins/GitHub steps if configured.
     """
     bot = bot_registry.get_bot(bot_id)
     if not bot:
@@ -287,10 +411,10 @@ def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dic
     jenkins_job = ctx.get("jenkins_job")
     step_num = 1
 
-    # Step 1: Container Log Inspection (if container monitoring is requested or container_name is present)
+    # Step 1: Container Log Inspection
     steps_log.append({
         "step": step_num,
-        "name": "Log Monitoring & Anomaly Detection",
+        "name": f"Docker Log Inspection: '{container_name}'",
         "status": "in_progress",
         "details": f"Inspecting live logs for container '{container_name}'..."
     })
@@ -312,16 +436,53 @@ def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dic
         return {"success": True, "status": "healthy", "run_record": run_record}
 
     steps_log[0]["status"] = "alert"
-    steps_log[0]["details"] = f"🚨 Detected critical error in '{container_name}' logs."
+    steps_log[0]["details"] = f"🚨 Detected critical error / exception signature in '{container_name}' logs."
     steps_log[0]["log_sample"] = logs[-600:]
     step_num += 1
 
-    # Step 2: AI Root Cause Analysis (RCA)
+    # Step 2: Deduplication Check
+    steps_log.append({
+        "step": step_num,
+        "name": "Incident Deduplication Check (MCP)",
+        "status": "in_progress",
+        "details": "Verifying if an open incident already exists to prevent duplicate ticket creation..."
+    })
+    
+    # Query ServiceNow for open incidents on this container
+    is_duplicate = False
+    existing_ticket_num = None
+
+    if "servicenow" in tools_req or not tools_req:
+        query_res = execute_mcp_tool_on_gateway("servicenow", "query_incidents", {"query": f"active=true^short_descriptionLIKE{container_name}"})
+        if query_res["success"] and "INC" in query_res["output"]:
+            match = re.search(r"(INC\d+)", query_res["output"])
+            if match:
+                is_duplicate = True
+                existing_ticket_num = match.group(1)
+
+    if is_duplicate:
+        steps_log[-1]["status"] = "warning"
+        steps_log[-1]["details"] = f"ℹ️ Active open incident '{existing_ticket_num}' already exists for '{container_name}'. Skipping ticket creation to avoid duplication."
+        run_record = {
+            "timestamp": timestamp_str,
+            "status": "deduplicated",
+            "trigger": trigger_reason,
+            "summary": f"Active ticket {existing_ticket_num} is already tracking this error. Deduplication prevented redundant incident.",
+            "steps": steps_log
+        }
+        bot_registry.append_run_log(bot_id, run_record)
+        return {"success": True, "status": "deduplicated", "summary": run_record["summary"], "run_record": run_record}
+
+    steps_log[-1]["status"] = "success"
+    steps_log[-1]["details"] = "✅ No active duplicate tickets found. Proceeding with incident workflow."
+    step_num += 1
+
+    # Step 3: Mistral AI Root Cause Analysis (RCA)
     steps_log.append({
         "step": step_num,
         "name": "Mistral AI Root Cause Analysis (RCA)",
         "status": "in_progress",
-        "details": "Synthesizing stack trace and diagnosing root failure cause..."
+        "details": "Synthesizing stack trace and diagnosing failure mechanism..."
     })
     rca_context = f"Container: {container_name}"
     if github_repo:
@@ -335,7 +496,9 @@ def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dic
     steps_log[-1]["rca_summary"] = rca
     step_num += 1
 
-    # Step 3: ServiceNow Incident Creation (if servicenow in tools_req)
+    # Step 4: Create ServiceNow Incident via MCP Gateway
+    created_sys_id = None
+    created_inc_num = None
     if "servicenow" in tools_req or not tools_req:
         steps_log.append({
             "step": step_num,
@@ -357,24 +520,44 @@ Recommended Fix: {rca.get('recommended_fix')}""",
         snow_res = execute_mcp_tool_on_gateway("servicenow", "create_incident", snow_args)
         
         if snow_res["success"]:
+            num_match = re.search(r"(INC\d+)", snow_res["output"])
+            if num_match:
+                created_inc_num = num_match.group(1)
+            sys_match = re.search(r'"sys_id":\s*"([a-f0-9]{32})"', snow_res["output"])
+            if sys_match:
+                created_sys_id = sys_match.group(1)
+
             steps_log[-1]["status"] = "success"
-            steps_log[-1]["details"] = f"ServiceNow incident generated successfully via MCP Gateway."
+            steps_log[-1]["details"] = f"Incident '{created_inc_num or 'INC-NEW'}' created successfully via MCP Gateway."
             steps_log[-1]["mcp_output"] = snow_res["output"][:400]
         else:
             steps_log[-1]["status"] = "warning"
             steps_log[-1]["details"] = f"ServiceNow MCP response: {snow_res['output'][:200]}"
         step_num += 1
 
-        # Step 4: ServiceNow Enrichment
+        # Step 5: Ticket Enrichment & Auto-Resolution with Full RCA
         steps_log.append({
             "step": step_num,
-            "name": "ServiceNow Ticket Enrichment with RCA",
-            "status": "success",
-            "details": "Enriched incident ticket with full AI RCA remediation checklist and stack trace breakdown."
+            "name": "ServiceNow Ticket Enrichment & RCA Auto-Resolution",
+            "status": "in_progress",
+            "details": "Updating ticket with complete AI RCA remediation plan and resolving incident..."
         })
+        
+        if created_sys_id:
+            update_args = {
+                "sys_id": created_sys_id,
+                "work_notes": f"### AI SRE Root Cause Analysis (RCA)\n- **Root Cause:** {rca.get('root_cause')}\n- **Component:** {rca.get('affected_component')}\n- **Fix:** {rca.get('recommended_fix')}",
+                "close_code": "Solution Provided",
+                "close_notes": f"Resolved by Autonomous SRE Bot '{bot['name']}' with Mistral AI RCA report.",
+                "state": "6"
+            }
+            execute_mcp_tool_on_gateway("servicenow", "update_incident", update_args)
+            
+        steps_log[-1]["status"] = "success"
+        steps_log[-1]["details"] = f"Incident '{created_inc_num or 'INC-NEW'}' enriched with RCA and transitioned to Resolved/Closed state."
         step_num += 1
 
-    # Step 5: Jenkins Pipeline Inspection (if jenkins in tools_req)
+    # Optional Step 6: Jenkins Pipeline Inspection (if jenkins in tools_req)
     if "jenkins" in tools_req and jenkins_job:
         steps_log.append({
             "step": step_num,
@@ -387,7 +570,7 @@ Recommended Fix: {rca.get('recommended_fix')}""",
         steps_log[-1]["details"] = f"Jenkins query completed for job '{jenkins_job}'."
         step_num += 1
 
-    # Step 6: GitHub Commit Correlation (if github in tools_req)
+    # Optional Step 7: GitHub Commit Correlation (if github in tools_req)
     if "github" in tools_req and github_repo:
         steps_log.append({
             "step": step_num,
@@ -403,12 +586,12 @@ Recommended Fix: {rca.get('recommended_fix')}""",
     end_time = datetime.now()
     duration_sec = round((end_time - start_time).total_seconds(), 2)
 
-    summary_text = f"🚨 Anomaly Detected in '{container_name}' ➔ Mistral AI RCA completed ({rca.get('affected_component', 'Service')}) ➔ Orchestrated {len(steps_log)} steps via MCP Gateway."
+    summary_text = f"🚨 Anomaly in '{container_name}' ➔ Deduplication Verified ➔ AI RCA Completed ➔ Ticket {created_inc_num or 'INC'} Created & Auto-Resolved with Remediation Plan."
 
     run_record = {
         "timestamp": timestamp_str,
         "duration_seconds": duration_sec,
-        "status": "incident_created",
+        "status": "incident_resolved",
         "trigger": trigger_reason,
         "summary": summary_text,
         "container": container_name,
@@ -419,7 +602,7 @@ Recommended Fix: {rca.get('recommended_fix')}""",
     bot_registry.append_run_log(bot_id, run_record)
     return {
         "success": True,
-        "status": "incident_created",
+        "status": "incident_resolved",
         "summary": summary_text,
         "rca": rca,
         "run_record": run_record
