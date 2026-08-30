@@ -1,5 +1,5 @@
 # 🌐 AI DevOps Value Stream Portal
-### *Enterprise Autonomous AI Agent Farm for End-to-End DevOps (CM, CI, CD, CT & AIOps)*
+### *The Universal Platform for Building MCP Servers & Deploying Autonomous AI Agents On-The-Fly*
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![MCP Protocol](https://img.shields.io/badge/MCP-JSON--RPC%202.0-8b5cf6.svg)](https://modelcontextprotocol.io/)
@@ -13,106 +13,131 @@
 ---
 
 ## 📖 Table of Contents
-1. [🌟 Executive Summary & Vision: The Autonomous DevOps AI Agent Farm](#-executive-summary--vision-the-autonomous-devops-ai-agent-farm)
-2. [🔄 Full-Lifecycle DevOps Value Stream Matrix (CM, CI, CD, CT & AIOps)](#-full-lifecycle-devops-value-stream-matrix-cm-ci-cd-ct--aiops)
-3. [📐 End-to-End System Architecture](#-end-to-end-system-architecture)
-4. [⚙️ The 12-Step Autonomous Workflow Engine](#️-the-12-step-autonomous-workflow-engine)
-5. [🖼️ Visual Walkthrough & System Gallery](#️-visual-walkthrough--system-gallery)
-6. [🔬 Real-World Incident Case Study (Spring Boot & ServiceNow)](#-real-world-incident-case-study-spring-boot--servicenow)
-7. [📊 Business Impact, Metrics & ROI Analysis](#-business-impact-metrics--roi-analysis)
-8. [🚀 Deployment Strategies & Operating Models](#-deployment-strategies--operating-models)
-9. [💻 Installation & Quickstart](#-installation--quickstart)
-10. [🔒 Security, Governance & Extensibility](#-security-governance--extensibility)
-11. [🗺️ Roadmap & Future Enhancements](#️-roadmap--future-enhancements)
+1. [🌟 What This Platform Really Is: The Dual-Engine AI Foundry](#-what-this-platform-really-is-the-dual-engine-ai-foundry)
+2. [🛠️ Core Capability 1: Build & Deploy MCP Servers On-The-Fly](#️-core-capability-1-build--deploy-mcp-servers-on-the-fly)
+3. [🤖 Core Capability 2: Deploy Autonomous AI Agents On-The-Fly](#-core-capability-2-deploy-autonomous-ai-agents-on-the-fly)
+4. [🔄 The DevOps Agent Landscape: Multi-Discipline AI Bots](#-the-devops-agent-landscape-multi-discipline-ai-bots)
+5. [📐 End-to-End System Architecture](#-end-to-end-system-architecture)
+6. [🖼️ Visual Walkthrough & System Gallery](#️-visual-walkthrough--system-gallery)
+7. [🔬 Deep-Dive Showcase: 12-Step Incident Auto-Remediation](#-deep-dive-showcase-12-step-incident-auto-remediation)
+8. [📊 Business Impact, SRE Metrics & ROI Analysis](#-business-impact-sre-metrics--roi-analysis)
+9. [🚀 Deployment Strategies & Operating Models](#-deployment-strategies--operating-models)
+10. [💻 Installation & Quickstart](#-installation--quickstart)
+11. [🔒 Security, Governance & Extensibility](#-security-governance--extensibility)
+12. [🗺️ Roadmap & Future Enhancements](#️-roadmap--future-enhancements)
 
 ---
 
-## 🌟 Executive Summary & Vision: The Autonomous DevOps AI Agent Farm
+## 🌟 What This Platform Really Is: The Dual-Engine AI Foundry
 
-Modern software delivery demands speed, compliance, and resilience across every phase of the software delivery lifecycle (SDLC). However, engineering teams remain bottlenecked by fragmented tools, alert storms, and manual handoffs between **Version Control (GitHub)**, **Build Pipelines (Jenkins)**, **Runtime Environments (Docker/K8s)**, and **ITSM Platforms (ServiceNow)**.
+**Incident auto-remediation is just one showcase.** 
 
-**AI DevOps Value Stream Portal** is an **Enterprise AI Agent Farm** powered by Anthropic's **Model Context Protocol (MCP)** and **Mistral AI Large Language Models**. 
-
-Rather than serving as a single-purpose monitoring script, this platform acts as an **autonomous multi-agent foundry** capable of synthesizing, deploying, and managing specialized AI bots across every stage of the DevOps Value Stream:
+**AI DevOps Value Stream Portal** is a **next-generation foundational platform** built to solve two fundamental challenges in modern AI-assisted engineering:
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                          🏭 ENTERPRISE DEVOPS AI AGENT FARM TAXONOMY                                    │
-├─────────────────┬─────────────────┬──────────────────┬──────────────────┬──────────────────────────────┤
-│  CM (Management)│  CI (Integrate) │  CD (Deploy)     │  CT (Test)       │  CO & AIOps (Observability)  │
-├─────────────────┼─────────────────┼──────────────────┼──────────────────┼──────────────────────────────┤
-│ 🐙 Repo Audits  │ 🏗️ Build Healer │ 🚀 Canary Health │ 🧪 Test Triage   │ 🐳 Container Watchdog        │
-│ 🛡️ Schema Gate  │ 🔍 PR Reviewer  │ 📦 Tag Promotion │ ⚡ Flaky Defense │ 🧠 Deterministic LLM RCA     │
-│ 📋 Change Gov   │ 🔐 Secret Scan  │ 🔄 Auto-Rollback │ 📉 Regress Check │ 📋 ITSM Journal Auto-Resolve │
-└─────────────────┴─────────────────┴──────────────────┴──────────────────┴──────────────────────────────┘
+│                              🚀 THE DUAL-ENGINE AI FOUNDRY CAPABILITY                                  │
+├────────────────────────────────────────────────────┬───────────────────────────────────────────────────┤
+│ 1️⃣ ON-THE-FLY MCP SERVER BUILDER                  │ 2️⃣ ON-THE-FLY AUTONOMOUS AI AGENT FOUNDRY         │
+├────────────────────────────────────────────────────┼───────────────────────────────────────────────────┤
+│ • Build MCP servers for ANY platform in seconds    │ • Build & deploy autonomous AI bots in seconds    │
+│ • Natural language chat with Mistral AI Architect  │ • Conversational discovery & capability validation│
+│ • Auto-generates schemas, types & auth vaults      │ • Synthesizes dynamic, executable Python scripts  │
+│ • 1-Click zero-downtime hot-reload to Gateway      │ • Fleet management (watchdogs, telemetry, cron)   │
+│ • Pre-built: Docker, GitHub, Jenkins, ServiceNow   │ • Use cases: SRE, CI/CD, Code QA, Security, Infra │
+└────────────────────────────────────────────────────┴───────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🔄 Full-Lifecycle DevOps Value Stream Matrix (CM, CI, CD, CT & AIOps)
+## 🛠️ Core Capability 1: Build & Deploy MCP Servers On-The-Fly
 
-The platform's unified MCP Gateway allows you to dynamically deploy autonomous bots across all 5 key stages:
+Connecting Large Language Models to enterprise infrastructure typically requires writing custom boilerplate, handling token limits, and parsing OpenAPI schemas manually.
+
+With this platform's **Live Mistral AI Interactive Architect**, you can scaffold, test, and expose **FastMCP servers on-the-fly** for *any platform or API* simply by talking to Mistral AI:
 
 ```mermaid
 flowchart LR
-    subgraph CM["1. Continuous Management (CM)"]
-        CM_1["🐙 GitHub Branch Governance"]
-        CM_2["🛡️ Code Security & Schema Gate"]
-        CM_3["📋 ServiceNow Change Management"]
-    end
+    UserPrompt["💬 User: 'Build an MCP Server for AWS S3 and CloudWatch'"]
+    Mistral["🤖 Mistral AI Interactive Architect"]
+    SchemaGen["📝 Auto-Generate Tools, Types & Parameter Schemas"]
+    VaultGen["🔑 Auto-Scaffold Credential Vault (.env)"]
+    FastMCPCode["⚡ Auto-Generate Python FastMCP Server Script"]
+    GatewayHotReload["🔒 1-Click Zero-Downtime Hot-Reload onto Gateway (:5001)"]
 
-    subgraph CI["2. Continuous Integration (CI)"]
-        CI_1["🏗️ Jenkins Build Failure Healer"]
-        CI_2["🔍 Automated PR Code Quality Triage"]
-        CI_3["🔐 Secret & Dependency Scanner"]
-    end
-
-    subgraph CD["3. Continuous Deployment (CD)"]
-        CD_1["🐳 Container Lifecycle & Rebuild"]
-        CD_2["🚀 Post-Deploy Health Verification"]
-        CD_3["🔄 Zero-Downtime Rollback Trigger"]
-    end
-
-    subgraph CT["4. Continuous Testing (CT)"]
-        CT_1["🧪 Automated Test Suite Failure RCA"]
-        CT_2["⚡ Flaky Test Isolation & Tagging"]
-        CT_3["📊 Quality Gate Validation"]
-    end
-
-    subgraph AIOps["5. Continuous Observability & AIOps"]
-        AO_1["⏱️ 5s Background Container Watchdog"]
-        AO_2["🛡️ Stateful SHA-256 Deduplication"]
-        AO_3["🧠 Mistral Root Cause Analysis"]
-        AO_4["📋 ServiceNow ITSM Auto-Resolution"]
-    end
-
-    CM --> CI --> CD --> CT --> AIOps
-    AIOps -.->|Self-Healing Feedback Loop| CD
-    AIOps -.->|Bug Remediation PR| CM
+    UserPrompt --> Mistral
+    Mistral --> SchemaGen
+    Mistral --> VaultGen
+    SchemaGen --> FastMCPCode
+    VaultGen --> FastMCPCode
+    FastMCPCode --> GatewayHotReload
 ```
 
-### Detailed Breakdown of Agent Capabilities by Stage:
+### Supported On-The-Fly Integrations:
+* **Cloud & Infrastructure**: AWS (S3, EC2, Lambda), Kubernetes (Pods, Deployments), Azure, GCP.
+* **CI/CD & Source Control**: GitHub, GitLab, Bitbucket, Jenkins, ArgoCD, Tekton.
+* **Observability & Monitoring**: Docker Engine, Prometheus, Datadog, Grafana, Dynatrace, New Relic.
+* **ITSM & Issue Tracking**: ServiceNow Table API, Jira, PagerDuty, Opsgenie, Linear.
+* **Custom Enterprise APIs**: Internal REST / GraphQL microservices scaffolded instantly into tool-calling schemas.
 
-#### 1. 🐙 Continuous Management (CM) & Governance
-* **Schema & Constraint Gatekeeper**: Monitors GitHub commits in real time, inspecting JPA entities and database schema files to detect column constraint mismatches (e.g. 255-char database columns receiving unbounded URLs) before code hits production.
-* **Change Request Automation**: Synthesizes formal Change Requests in ServiceNow matching code diffs and approvals.
+---
 
-#### 2. 🏗️ Continuous Integration (CI) Automation
-* **Build Failure Diagnoser**: Monitors Jenkins jobs (`devops-vsp-pipeline`). Upon pipeline failure, pulls build console logs, extracts compilation or dependency errors, correlates with the Git commit author, and opens a targeted remediation ticket.
-* **Autonomous PR Reviewer**: Analyzes GitHub Pull Requests against coding standards, security vulnerabilities, and SQL injection risks.
+## 🤖 Core Capability 2: Deploy Autonomous AI Agents On-The-Fly
 
-#### 3. 🚀 Continuous Deployment (CD) & Verification
-* **Post-Deployment Smoke Gate**: Verifies container health on `http://localhost:7000` immediately following image rollouts.
-* **Autonomous Remediation**: Automatically triggers clean rebuilds via Jenkins or container restarts when an unrecoverable runtime condition is detected.
+Beyond generating tool servers, the platform provides an **Autonomous AI Agent Foundry**. You describe what problem you want solved in plain English, and the platform:
+1. **Validates Capabilities**: Cross-references your live MCP Gateway to verify all necessary tools exist across all active servers.
+2. **Extracts Runtime Context**: Automatically binds container names, repositories, pipeline IDs, and urgency thresholds.
+3. **Synthesizes Python Workflows (`workflow.py`)**: Generates deterministic, stateful automation scripts with zero hardcoding.
+4. **Deploys Fleet Watchdogs**: Spawns 5s–60s autonomous cron loops with real-time execution telemetry and deduplication memory.
 
-#### 4. 🧪 Continuous Testing (CT) Quality Assurance
-* **Test Failure Triage**: Isolates failed JUnit / integration test assertions from logs, diagnoses root causes with Mistral AI, and reports exact line numbers and entity fixes.
-* **Regression Protection**: Compares historical test executions to differentiate transient environment flakes from true code regressions.
+```mermaid
+flowchart TD
+    Prompt["💬 Prompt: 'Monitor devops-vsp-sample-app for errors, check ServiceNow, run RCA, and resolve ticket'"]
+    Architect["🤖 Interactive AI Bot Architect (Mistral LLM)"]
+    Validation["🔍 Live MCP Tool Capability Validation"]
+    Synthesizer["⚡ Synthesizes Executable workflow.py Script"]
+    Registry["📦 Registers into Autonomous Bot Fleet"]
+    Watchdog["⏱️ Deploys 5s Background Watchdog & Telemetry"]
 
-#### 5. 🔭 Continuous Observability (CO) & AIOps
-* **High-Precision Log Stripping**: Filters out hundreds of lines of Spring Boot / framework boilerplate to isolate the exact database or runtime error.
-* **SHA-256 Anti-Storm Deduplication**: Guarantees that repeating errors across restarts or continuous polling cycles never create duplicate ITSM tickets.
-* **Non-Destructive Work Notes Journaling**: Appends complete Mistral RCA markdown into ServiceNow `work_notes` journal fields while preserving customer descriptions, and auto-resolves tickets (`state: 6`).
+    Prompt --> Architect
+    Architect --> Validation
+    Validation --> Synthesizer
+    Synthesizer --> Registry
+    Registry --> Watchdog
+```
+
+---
+
+## 🔄 The DevOps Agent Landscape: Multi-Discipline AI Bots
+
+The AI Agent Foundry can spawn specialized bots across every domain of the DevOps and Platform Engineering landscape:
+
+```text
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                        🏭 AUTONOMOUS AI AGENTS DEPLOYABLE ON-THE-FLY                                   │
+├─────────────────┬─────────────────┬──────────────────┬──────────────────┬──────────────────────────────┤
+│ 🛡️ SRE & Healing│ 🔍 Code Quality │ 🏗️ CI/CD Healers │ ☁️ Infra & Sec   │ 🚀 Release & Canary          │
+├─────────────────┼─────────────────┼──────────────────┼──────────────────┼──────────────────────────────┤
+│ • DB Crash Triage│ • SQL Inject Scan│ • Jenkins Log Triage│ • K8s CrashLoop RCA│ • Post-Deploy Smoke Gate │
+│ • Stack Stripper│ • JPA Schema Gate│ • Flaky Test Filter│ • IAM Policy Audit│ • Automated Rollback Trigger│
+│ • Dedup Memory  │ • Secret Leakage│ • Git Author Alert│ • Drift Detection│ • Tag / Version Promotion    │
+└─────────────────┴─────────────────┴──────────────────┴──────────────────┴──────────────────────────────┘
+```
+
+### Concrete Agent Examples Built & Deployed On-The-Fly:
+
+1. **🛡️ Autonomous SRE Auto-Remediation Bot**:
+   * *Target*: Docker containers + ServiceNow Table API + Mistral RCA.
+   * *Action*: Captures unhandled Spring Boot stack traces, deduplicates via SHA-256, opens ServiceNow tickets, enriches `work_notes` with JPA fixes, and marks tickets Resolved.
+2. **🔍 Code Security & JPA Schema Gatekeeper Bot**:
+   * *Target*: GitHub Commits & Pull Requests.
+   * *Action*: Scans incoming commits for database column constraint violations (e.g. 255-char columns receiving long URLs), hardcoded tokens, and SQL injection vulnerabilities.
+3. **🏗️ CI/CD Pipeline Build Failure Diagnoser Bot**:
+   * *Target*: Jenkins (`devops-vsp-pipeline`) + GitHub VCS.
+   * *Action*: Monitors Jenkins builds. When a build turns Red, isolates compilation errors from console logs, correlates with the Git commit diff, and alerts the author.
+4. **☁️ Infrastructure Health & Container Watchdog Bot**:
+   * *Target*: Docker Unix Socket (`/var/run/docker.sock`) + Process telemetry.
+   * *Action*: Continuously polls container health, verifies Java process PIDs, and automatically triggers rebuilds or clean restarts when services degrade.
 
 ---
 
@@ -130,7 +155,8 @@ flowchart TD
     subgraph "AI DevOps Value Stream Portal Platform"
         subgraph "Layer 1: Orchestration & UI (:5000)"
             WebUI["🌐 Interactive Web Dashboard"]
-            BotArchitect["🤖 Conversational Bot Architect (Mistral LLM)"]
+            ServerArchitect["🛠️ On-The-Fly MCP Server Architect"]
+            BotArchitect["🤖 On-The-Fly Autonomous Bot Architect"]
             ChatAssistant["💬 Platform AI Assistant"]
         end
 
@@ -147,7 +173,7 @@ flowchart TD
             MCP_SNOW["📋 ServiceNow Driver (Table API & Journal Fields)"]
         end
 
-        subgraph "Layer 4: Autonomous SRE Engine"
+        subgraph "Layer 4: Autonomous SRE & Agent Engine"
             Watchdog["⏱️ Background Watchdog (5s Cron Loop)"]
             Dedup["🛡️ Stateful SHA-256 Error Deduplication"]
             LogStripper["✂️ Precision Stack Trace Error Stripper"]
@@ -175,53 +201,6 @@ flowchart TD
     LogStripper --> Dedup
     Dedup --> MistralRCA
     BotRunner -->|Execute Tools| Gateway
-```
-
----
-
-## ⚙️ The 12-Step Autonomous Workflow Engine
-
-When you configure a bot in the **Interactive AI Bot Architect**, the system synthesizes a deterministic 12-step autonomous workflow:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant App as 🐳 Container / Logs
-    participant Bot as ⚡ Autonomous Bot
-    participant Dedup as 🛡️ SHA-256 Engine
-    participant Gateway as 🔒 MCP Gateway (:5001)
-    participant Mistral as 🧠 Mistral AI LLM
-    participant SNOW as 📋 ServiceNow Table API
-
-    Note over Bot,App: Step 1 & 2: Continuous Discovery
-    Bot->>Gateway: docker.list_containers() & docker.inspect_container()
-    Gateway->>App: Fetch live logs (350 lines tail)
-    App-->>Bot: Runtime Log Stream
-
-    Note over Bot,Dedup: Step 3 & 4: Deduplication & Triage
-    Bot->>Dedup: Normalize & compute SHA-256 hash of error block
-    Dedup-->>Bot: New Error Detected (Hash not in memory)
-    Bot->>Gateway: servicenow.get_incident(short_description="Application Error")
-    Gateway->>SNOW: Query open tickets
-    SNOW-->>Bot: No active matching duplicate tickets
-
-    Note over Bot,SNOW: Step 5, 6 & 7: Ticket Creation & Triage Notice
-    Bot->>Gateway: servicenow.create_incident(short_description, urgency="2")
-    Gateway->>SNOW: POST /api/now/table/incident
-    SNOW-->>Bot: INC0010063 Created (sys_id: 0f533...)
-    Bot->>Gateway: servicenow.add_work_note("SRE AI agent analyzing issue...")
-    Gateway->>SNOW: PATCH /api/now/table/incident/{sys_id}
-
-    Note over Bot,Mistral: Step 8, 9 & 10: Multi-Platform Correlation & AI RCA
-    Bot->>Gateway: jenkins.get_job_details("devops-vsp-pipeline")
-    Bot->>Gateway: github.list_repos("shakilmunavary/devops-vsp-sample-app")
-    Bot->>Mistral: Analyze (Log + Commit Diff + Pipeline Context)
-    Mistral-->>Bot: Structured RCA (Root Cause + JPA/SQL Entity Fix)
-
-    Note over Bot,SNOW: Step 11 & 12: Ticket Enrichment & Auto-Resolution
-    Bot->>Gateway: servicenow.update_incident(sys_id, work_notes=RCA_Markdown, state="6", close_code="Solution Provided")
-    Gateway->>SNOW: PATCH /api/now/table/incident/{sys_id}
-    SNOW-->>Bot: Ticket INC0010063 Marked Resolved (HTTP 200)
 ```
 
 ---
@@ -316,7 +295,7 @@ sequenceDiagram
 
 ---
 
-## 🔬 Real-World Incident Case Study (Spring Boot & ServiceNow)
+## 🔬 Deep-Dive Showcase: 12-Step Incident Auto-Remediation
 
 ### The Production Failure:
 A Spring Boot service (`devops-vsp-sample-app`) received an abnormally long URL in a user registration request (651 characters), exceeding the H2 / PostgreSQL column definition:
@@ -344,7 +323,7 @@ SQL statement: insert into "user" (email,name,id) values (?,?,default) [22001-21
 
 ---
 
-## 📊 Business Impact, Metrics & ROI Analysis
+## 📊 Business Impact, SRE Metrics & ROI Analysis
 
 Deploying **AI DevOps Value Stream Portal** delivers measurable operational and financial benefits:
 
@@ -451,8 +430,9 @@ chmod +x start.sh stop.sh
 
 ## 🗺️ Roadmap & Future Enhancements
 
+- [x] **On-the-Fly MCP Server Generator** (AWS, K8s, Jira, Custom APIs).
+- [x] **On-the-Fly Autonomous Bot Foundry** (SRE, Code QA, CI/CD Healers).
 - [x] **Universal MCP JSON-RPC Gateway** (`:5001`).
-- [x] **Mistral AI Conversational Bot Architect**.
 - [x] **ServiceNow Table API & Journal Work Notes Enrichment**.
 - [x] **Stateful SHA-256 Deduplication Engine**.
 - [ ] **Kubernetes MCP Driver**: Pod log streaming, automated crash-loop triage, and rollback orchestration.
