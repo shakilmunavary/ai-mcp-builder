@@ -278,6 +278,11 @@ bot_registry = BotRegistry()
 # Precision Error Stripper & Multi-Source Log Extraction
 # ==============================================================================
 
+import hashlib
+
+_PROCESSED_ERROR_HASHES = set()
+
+
 def extract_stripped_error_log(raw_logs: str) -> Optional[str]:
     """
     Intelligently strips and concentrates the exact error block from container logs.
@@ -315,17 +320,33 @@ def extract_stripped_error_log(raw_logs: str) -> Optional[str]:
     if len(extracted_chunk) > 60:
         extracted_chunk = extracted_chunk[:60]
 
-    return "\n".join(extracted_chunk).strip()
+    error_text = "\n".join(extracted_chunk).strip()
+
+    # Stateful fingerprinting: Check if this exact error was already ticketed and resolved
+    err_hash = hashlib.sha256(error_text.encode("utf-8")).hexdigest()
+    if err_hash in _PROCESSED_ERROR_HASHES:
+        logger.info(f"ℹ️ Error hash {err_hash[:8]} was already processed and resolved. Skipping redundant incident creation.")
+        return None
+
+    return error_text
+
+
+def mark_error_processed(error_text: str):
+    """Marks an error text as processed so it is never re-ticketed."""
+    if error_text:
+        err_hash = hashlib.sha256(error_text.encode("utf-8")).hexdigest()
+        _PROCESSED_ERROR_HASHES.add(err_hash)
 
 
 def fetch_container_logs(container_name: str) -> str:
     """
-    Reads 100% real live container logs directly from Docker (local host and WSL).
+    Reads recent container logs directly from Docker (local host and WSL).
+    Limits to recent tail to avoid pulling ancient historical logs after a restart.
     """
-    # 1. Direct docker CLI
+    # 1. Direct docker CLI (recent 100 lines)
     try:
         proc = subprocess.run(
-            ["docker", "logs", "--tail", "250", container_name],
+            ["docker", "logs", "--tail", "100", container_name],
             capture_output=True,
             text=True,
             timeout=5.0
@@ -338,7 +359,7 @@ def fetch_container_logs(container_name: str) -> str:
     # 2. WSL Ubuntu docker CLI
     try:
         proc = subprocess.run(
-            ["wsl.exe", "-d", "Ubuntu", "-e", "docker", "logs", "--tail", "250", container_name],
+            ["wsl.exe", "-d", "Ubuntu", "-e", "docker", "logs", "--tail", "100", container_name],
             capture_output=True,
             text=True,
             timeout=5.0
@@ -672,6 +693,9 @@ Recommended Fix:
         steps_log[-1]["status"] = "success"
         steps_log[-1]["details"] = f"Incident '{created_inc_num or 'INC-NEW'}' enriched with RCA and transitioned to Resolved/Closed state."
         step_num += 1
+
+    # Mark this specific error hash as fully processed and resolved
+    mark_error_processed(stripped_error)
 
     end_time = datetime.now()
     duration_sec = round((end_time - start_time).total_seconds(), 2)
