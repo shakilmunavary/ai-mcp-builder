@@ -625,7 +625,7 @@ def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dic
     steps_log[-1]["rca_summary"] = rca
     step_num += 1
 
-    # Step 5: Create ServiceNow Incident via MCP Gateway
+    # Step 5: Create ServiceNow Incident with Initial Worker Notes
     created_sys_id = None
     created_inc_num = None
     if "servicenow" in tools_req or not tools_req:
@@ -633,24 +633,11 @@ def run_bot_workflow(bot_id: str, trigger_reason: str = "Manual Trigger") -> Dic
             "step": step_num,
             "name": "ServiceNow Incident Creation (MCP)",
             "status": "in_progress",
-            "details": "Creating incident ticket with stripped error log on MCP Gateway (:5001)..."
+            "details": f"Creating incident ticket with short description 'Application {container_name} Error' and initial worker notes on MCP Gateway..."
         })
-        inc_title = rca.get("incident_title") or f"[ALERT] Database Exception on {container_name}"
         snow_args = {
-            "short_description": inc_title,
-            "description": f"""=== AUTOMATED SRE ALERT: {container_name} ===
-
-Root Cause:
-{rca.get('root_cause')}
-
-Affected Component:
-{rca.get('affected_component')}
-
-STRIPPED ERROR LOG:
-{stripped_error}
-
-Recommended Fix:
-{rca.get('recommended_fix')}""",
+            "short_description": f"Application {container_name} Error",
+            "work_notes": f"SRE AI agent is analyzing the issue.\n\n=== STRIPPED ERROR LOG ===\n{stripped_error}",
             "urgency": ctx.get("snow_urgency", "2"),
             "impact": ctx.get("snow_impact", "2")
         }
@@ -665,33 +652,34 @@ Recommended Fix:
                 created_sys_id = sys_match.group(1)
 
             steps_log[-1]["status"] = "success"
-            steps_log[-1]["details"] = f"Incident '{created_inc_num or 'INC-NEW'}' created successfully."
+            steps_log[-1]["details"] = f"Incident '{created_inc_num or 'INC-NEW'}' created with initial worker notes."
             steps_log[-1]["mcp_output"] = snow_res["output"][:400]
         else:
             steps_log[-1]["status"] = "warning"
             steps_log[-1]["details"] = f"ServiceNow MCP response: {snow_res['output'][:200]}"
         step_num += 1
 
-        # Step 6: Ticket Enrichment & Auto-Resolution with Full RCA
+        # Step 6: Update Worker Notes with Mistral RCA & Close/Resolve Ticket
         steps_log.append({
             "step": step_num,
-            "name": "ServiceNow Ticket Enrichment & RCA Auto-Resolution",
+            "name": "ServiceNow Worker Notes RCA Update & Auto-Closure",
             "status": "in_progress",
-            "details": "Updating ticket with complete AI RCA remediation plan and resolving incident..."
+            "details": "Updating ticket worker notes with complete Mistral AI RCA and transitioning to Resolved/Closed..."
         })
         
         if created_sys_id:
+            formatted_rca_text = rca.get('formatted_rca_markdown') or rca.get('root_cause') or ''
             update_args = {
                 "sys_id": created_sys_id,
-                "work_notes": f"### AI SRE Root Cause Analysis (RCA)\\n- **Root Cause:** {rca.get('root_cause')}\\n- **Component:** {rca.get('affected_component')}\\n- **Fix:** {rca.get('recommended_fix')}",
+                "work_notes": f"### Mistral AI SRE Root Cause Analysis (RCA)\n\n• Root Cause: {rca.get('root_cause')}\n• Component: {rca.get('affected_component')}\n• Recommended Fix: {rca.get('recommended_fix')}\n\n{formatted_rca_text}",
                 "close_code": "Solution Provided",
-                "close_notes": f"Resolved by Autonomous SRE Bot with Mistral AI RCA report.\\n\\n{rca.get('formatted_rca_markdown')}",
+                "close_notes": f"Resolved by Autonomous SRE Bot with Mistral AI RCA report.\n\nRoot Cause: {rca.get('root_cause')}",
                 "state": "6"
             }
             execute_mcp_tool_on_gateway("servicenow", "update_incident", update_args)
             
         steps_log[-1]["status"] = "success"
-        steps_log[-1]["details"] = f"Incident '{created_inc_num or 'INC-NEW'}' enriched with RCA and transitioned to Resolved/Closed state."
+        steps_log[-1]["details"] = f"Incident '{created_inc_num or 'INC-NEW'}' worker notes updated with full RCA and resolved."
         step_num += 1
 
     # Mark this specific error hash as fully processed and resolved
