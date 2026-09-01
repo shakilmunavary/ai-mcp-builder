@@ -10,7 +10,8 @@
   "forwardPorts": [
     5000,
     5001,
-    7000
+    7000,
+    8080
   ],
   "portsAttributes": {
     "5000": {
@@ -24,9 +25,13 @@
     "7000": {
       "label": "Sample Spring Boot App",
       "onAutoForward": "silent"
+    },
+    "8080": {
+      "label": "Jenkins Automation Server",
+      "onAutoForward": "silent"
     }
   },
-  "postCreateCommand": "pip install --upgrade pip && pip install -r requirements.txt && chmod +x start.sh stop.sh",
+  "postCreateCommand": "pip install --upgrade pip && pip install -r requirements.txt && chmod +x start.sh stop.sh setup_jenkins.sh",
   "customizations": {
     "vscode": {
       "extensions": [
