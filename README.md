@@ -1,4 +1,4 @@
-# 🌐 DevOps Value Stream Portal with AI Agentarium
+# 🌐 AI DevOps Value Stream Portal
 ### *The Universal Platform for Building MCP Servers & Deploying Autonomous AI Agents On-The-Fly*
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
@@ -9,6 +9,7 @@
 [![Jenkins](https://img.shields.io/badge/CI%2FCD-Jenkins%20Automation-D24939.svg)](https://www.jenkins.io/)
 [![GitHub](https://img.shields.io/badge/VCS-GitHub%20Enterprise-181717.svg)](https://github.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/shakilmunavary/ai-mcp-builder)
 
 ---
 
@@ -349,6 +350,24 @@ Deploying **AI DevOps Value Stream Portal** delivers measurable operational and 
 ---
 
 ## 🚀 Deployment Strategies & Operating Models
+
+### ☁️ 1. Instant 1-Click GitHub Codespaces (Zero Local Setup)
+Run the entire platform directly inside a secure cloud container with pre-configured Python 3.11, Docker daemon (Docker-in-Docker), and auto-forwarded ports:
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/shakilmunavary/ai-mcp-builder)
+
+1. Click **Open in GitHub Codespaces** above (or click **Code** -> **Codespaces** -> **Create codespace on main**).
+2. Set your environment variables in .env (or configure Codespaces Secrets):
+   `ash
+   cp .env.example .env
+   # Add your MISTRAL_API_KEY, GITHUB PAT, ServiceNow & Jenkins credentials
+   `
+3. Launch the daemon:
+   `ash
+   ./start.sh
+   `
+4. Click the forwarded port **5000** notification or open the **Ports** tab to view your live **AI DevOps Value Stream Portal** dashboard!
+
 
 ### 1. Bare-Metal / WSL2 / VM Daemon
 Ideal for local development, staging environments, and hybrid cloud VMs:

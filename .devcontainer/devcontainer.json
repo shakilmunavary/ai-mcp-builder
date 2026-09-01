@@ -1,0 +1,42 @@
+{
+  "name": "AI DevOps Value Stream Portal",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "enableNonRootDocker": "true"
+    }
+  },
+  "forwardPorts": [
+    5000,
+    5001,
+    7000
+  ],
+  "portsAttributes": {
+    "5000": {
+      "label": "AI DevOps Value Stream Portal UI",
+      "onAutoForward": "openBrowser"
+    },
+    "5001": {
+      "label": "FastMCP JSON-RPC Gateway",
+      "onAutoForward": "silent"
+    },
+    "7000": {
+      "label": "Sample Spring Boot App",
+      "onAutoForward": "silent"
+    }
+  },
+  "postCreateCommand": "pip install --upgrade pip && pip install -r requirements.txt && chmod +x start.sh stop.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python"
+      }
+    }
+  }
+}
